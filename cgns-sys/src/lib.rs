@@ -86,24 +86,81 @@
 //! }
 //! ```
 //!
-//! # Function groups
+//! # Safe wrappers
 //!
-//! | Prefix | Description |
-//! |---|---|
-//! | `cg_open` / `cg_close` | File I/O |
-//! | `cg_base_*` | Database bases |
-//! | `cg_zone_*` | Zones |
-//! | `cg_coord_*` | Grid coordinates |
-//! | `cg_grid_*` | Grid connectivity |
-//! | `cg_sol_*` / `cg_field_*` | Solution fields |
-//! | `cg_boco_*` | Boundary conditions |
-//! | `cg_conn_*` / `cg_1to1_*` | Zone connectivity |
-//! | `cg_section_*` / `cg_elements_*` | Unstructured elements |
-//! | `cg_family_*` | Family definitions |
-//! | `cg_array_*` | Raw array read/write |
-//! | `cg_configure` | Runtime configuration |
-//! | `cg_goto` / `cg_gorel` | Tree navigation (legacy) |
-//! | `cg_error_*` / `cg_get_error` | Error handling |
+//! This crate provides **safe, idiomatic Rust wrappers** for a subset of CGNS
+//! operations.  All wrappers acquire the global [`CGNS_MUTEX`] before calling
+//! into the C library (which is **not thread-safe**).  The following wrappers
+//! are currently implemented:
+//!
+//! | Category | Wrapper | CGNS function |
+//! |---|---|---|
+//! | File I/O | [`open_write`] | `cg_open` + `cg_set_file_type` |
+//! | File I/O | [`open_read`] | `cg_open` |
+//! | File I/O | [`close`] | `cg_close` |
+//! | Bases | [`base_write`] | `cg_base_write` |
+//! | Zones (structured) | [`zone_write_structured`] | `cg_zone_write` |
+//! | Coordinates | [`coord_write`] | `cg_coord_write` |
+//! | Coordinates | [`coord_read`] | `cg_coord_read` |
+//! | Solutions | [`sol_write`] | `cg_sol_write` |
+//! | Fields | [`field_write`] | `cg_field_write` |
+//! | Fields | [`field_read`] | `cg_field_read` |
+//! | Utilities | [`error_message`] | `cg_get_error` |
+//! | Utilities | [`status_to_result`] | (conversion helper) |
+//! | Utilities | [`lock_cgns`] | (CGNS mutex guard) |
+//! | Utilities | [`ensure_hdf5_backend`] | `cg_set_file_type` |
+//!
+//! ## Missing wrappers (planned / needed)
+//!
+//! These CGNS function groups are only accessible through raw `unsafe` FFI
+//! calls for now:
+//!
+//! | Group | Priority | Notes |
+//! |---|---|---|
+//! | `open_modify` (`CG_MODE_MODIFY`) | high | Append to an existing file |
+//! | `cg_section_*` / `cg_elements_*` | high | Unstructured grid support |
+//! | `cg_boco_*` | high | Boundary conditions |
+//! | `cg_conn_*` / `cg_1to1_*` | medium | Zone connectivity |
+//! | `cg_family_*` | medium | Family definitions |
+//! | `cg_array_*` | medium | Raw array read/write |
+//! | `cg_grid_*` | medium | Grid connectivity |
+//! | `cg_goto` / `cg_gorel` | low | Legacy tree navigation |
+//! | `cg_biter_write` / timestep iter | low | Unsteady data |
+//! | `cgp_*` | low | Parallel CGNS |
+//!
+//! All 300+ raw functions are available directly (e.g. `unsafe { cgns_sys::cg_nbases(...) }`).
+//! See the [official CGNS MLL reference](https://cgns.github.io/CGNS_docs_current/midlevel/index.html)
+//! for the complete API.
+//!
+//! # Thread safety
+//!
+//! The CGNS C library uses global state for file type, error messages, and
+//! internal I/O buffers — it is **not thread-safe**.  This crate serialises
+//! all FFI calls through a global [`std::sync::Mutex`] (`CGNS_MUTEX`).
+//! Every safe wrapper acquires the lock, so concurrent access from multiple
+//! threads is safe.
+//!
+//! If you call raw FFI functions directly, you **must** acquire the lock
+//! yourself via [`lock_cgns`] to avoid data races.
+//!
+//! # Quick start
+//!
+//! ```no_run
+//! use cgns_sys::*;
+//!
+//! // Write
+//! let fn_ = open_write("output.cgns").unwrap();
+//! let base = base_write(fn_, "Base", 3, 3).unwrap();
+//! let zone = zone_write_structured(fn_, base, "Zone", &[4,3,5, 3,2,4, 0,0,0]).unwrap();
+//! let _coord = coord_write(fn_, base, zone, DataType_t_RealDouble, "X", &[0.0; 60]).unwrap();
+//! close(fn_).unwrap();
+//!
+//! // Read
+//! let fn_ = open_read("output.cgns").unwrap();
+//! let mut buf = vec![0.0; 60];
+//! coord_read(fn_, 1, 1, DataType_t_RealDouble, "X", &[1,1,1], &[4,3,5], &mut buf).unwrap();
+//! close(fn_).unwrap();
+//! ```
 
 // Generated code may use non-Rust naming conventions.
 #![allow(non_upper_case_globals)]
@@ -337,7 +394,8 @@ pub fn field_write(
 /// Read grid coordinates for a structured zone.
 ///
 /// `name` is the coordinate name (e.g. "CoordinateX") and `rmin` / `rmax`
-/// specify the (1-based) index range to read.  Returns the data in a `Vec<f64>`.
+/// specify the (1-based) index range to read.  The data is written into
+/// the pre-allocated `data` slice.
 pub fn coord_read(
     fn_: i32,
     base: i32,
