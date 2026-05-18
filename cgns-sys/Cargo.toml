@@ -1,0 +1,10 @@
+[package]
+name = "cgns-sys"
+version.workspace = true
+edition.workspace = true
+links = "cgns"
+build = "build.rs"
+description = "Low-level FFI bindings to the CGNS C library (https://cgns.org)"
+
+[build-dependencies]
+bindgen = "0.72"

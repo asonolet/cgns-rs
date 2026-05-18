@@ -1,0 +1,9 @@
+/target
+
+# Build artifacts from cgns-sys/build.rs
+cgns-sys/vendor/hdf5-*/
+cgns-sys/vendor/hdf5-build*/
+cgns-sys/vendor/hdf5-install*/
+cgns-sys/vendor/cgns-build*/
+cgns-sys/vendor/cgns-install*/
+cgns-sys/vendor/*.tar.gz

@@ -1,0 +1,8 @@
+[package]
+name = "cgns"
+version.workspace = true
+edition.workspace = true
+description = "Safe high-level Rust bindings for CGNS (CFD General Notation System)"
+
+[dependencies]
+cgns-sys = { path = "../cgns-sys" }
