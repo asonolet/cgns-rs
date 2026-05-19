@@ -46,7 +46,7 @@ impl CgnsFile {
                     &mut phys_dim,
                 )
             };
-            let _ = check_sys_status(status)?;
+            check_sys_status(status)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             let found =
                 std::str::from_utf8(&buf[..end]).map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
