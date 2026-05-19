@@ -32,8 +32,29 @@ impl Base {
             .to_string())
     }
 
+    /// Create a structured (ijk-ordered) zone.
+    ///
+    /// `size` is the CGNS zone-size array with 3 or 9 entries:
+    /// - 3 entries: `[ni_v, nj_v, nk_v]` — vertex dimensions.
+    /// - 9 entries: `[ni_v, nj_v, nk_v, ni_c, nj_c, nk_c, 0, 0, 0]` —
+    ///   vertex dimensions followed by cell dimensions.
+    ///
+    /// Data is in **Fortran (column-major) order**: `i` varies fastest.
     pub fn create_zone_structured(&self, name: &str, size: &[i64]) -> CgnsResult<Zone> {
         let index = cgns_sys::zone_write_structured(self.file_fn, self.index, name, size)?;
+        Ok(Zone { file_fn: self.file_fn, base_index: self.index, index })
+    }
+
+    /// Create an unstructured zone.
+    ///
+    /// `num_vertices` is the number of mesh vertices (nodes) and
+    /// `num_elements` is the total number of cells/elements across all
+    /// sections.  The CGNS zone-size array is `[num_vertices, num_elements, 0]`.
+    ///
+    /// Add element connectivity with [`Zone::write_section`] after creation.
+    pub fn create_zone_unstructured(&self, name: &str, num_vertices: i64, num_elements: i64) -> CgnsResult<Zone> {
+        let size = [num_vertices, num_elements, 0];
+        let index = cgns_sys::zone_write_unstructured(self.file_fn, self.index, name, &size)?;
         Ok(Zone { file_fn: self.file_fn, base_index: self.index, index })
     }
 
