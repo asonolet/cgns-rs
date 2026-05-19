@@ -232,14 +232,12 @@ pub fn lock_cgns() -> std::sync::MutexGuard<'static, ()> {
 
 /// Ensure the CGNS library uses HDF5 as its file backend.
 ///
-/// This is called (under the CGNS lock) by [`open_write`].
+/// This is called by [`open_write`] before every write-open.
+/// Calling it multiple times is harmless.
 pub fn ensure_hdf5_backend() {
-    static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        unsafe {
-            cg_set_file_type(CG_FILE_HDF5 as i32);
-        }
-    });
+    unsafe {
+        cg_set_file_type(CG_FILE_HDF5 as i32);
+    }
 }
 
 /// Open a CGNS file for writing (create).
