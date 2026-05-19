@@ -1,4 +1,4 @@
-use cgns::data::GridLocation;
+use cgns::data::{ElementType, GridLocation};
 use cgns::CgnsFile;
 use std::path::PathBuf;
 
@@ -391,6 +391,155 @@ fn test_grid_location_roundtrip() {
         assert_eq!(zone.solution_count().expect("count"), 2);
         zone.solution("VertexSol").expect("find VertexSol");
         zone.solution("CellSol").expect("find CellSol");
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Single TRI_3 element (unstructured)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_unstructured_tri3() {
+    let path = test_path("unstructured_tri3");
+    let _ = std::fs::remove_file(&path);
+
+    // Three triangles
+    let conn: Vec<i64> = vec![1, 2, 3, 2, 4, 3, 1, 3, 4];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base.create_zone_unstructured("Zone", 4, 3).expect("create zone");
+        zone.write_section("TriSection", ElementType::Tri3, 1, 3, 0, &conn).expect("write section");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        assert_eq!(zone.section_count().expect("section count"), 1);
+
+        let sec = zone.section("TriSection").expect("find section");
+        let info = sec.info().expect("section info");
+        assert_eq!(info.name, "TriSection");
+        assert_eq!(info.element_type, ElementType::Tri3);
+        assert_eq!(info.start, 1);
+        assert_eq!(info.end, 3);
+        assert_eq!(sec.element_count().expect("element count"), 3);
+
+        let read_conn = sec.read_connectivity().expect("read connectivity");
+        assert_eq!(read_conn, conn);
+
+        let arr = sec.read_connectivity_ndarray().expect("ndarray");
+        assert_eq!(arr.shape(), &[3, 3]);
+        assert_eq!(arr[(0, 0)], 1);
+        assert_eq!(arr[(2, 2)], 4);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Single TETRA_4 element (unstructured)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_unstructured_tetra4() {
+    let path = test_path("unstructured_tetra4");
+    let _ = std::fs::remove_file(&path);
+
+    // Two tets
+    let conn: Vec<i64> = vec![1, 2, 3, 4, 2, 5, 4, 3];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base.create_zone_unstructured("Zone", 5, 2).expect("create zone");
+        zone.write_section("TetSection", ElementType::Tetra4, 1, 2, 0, &conn).expect("write section");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        assert_eq!(zone.section_count().expect("section count"), 1);
+
+        let sec = zone.section("TetSection").expect("find section");
+        let info = sec.info().expect("section info");
+        assert_eq!(info.name, "TetSection");
+        assert_eq!(info.element_type, ElementType::Tetra4);
+        assert_eq!(sec.element_count().expect("element count"), 2);
+
+        let read_conn = sec.read_connectivity().expect("read connectivity");
+        assert_eq!(read_conn, conn);
+
+        let arr = sec.read_connectivity_ndarray().expect("ndarray");
+        assert_eq!(arr.shape(), &[2, 4]);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Single HEXA_8 element (unstructured)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_unstructured_hexa8() {
+    let path = test_path("unstructured_hexa8");
+    let _ = std::fs::remove_file(&path);
+
+    // One hex
+    let conn: Vec<i64> = (1..=8).collect();
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base.create_zone_unstructured("Zone", 8, 1).expect("create zone");
+        zone.write_section("HexSection", ElementType::Hexa8, 1, 1, 0, &conn).expect("write section");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let sec = zone.section("HexSection").expect("find section");
+        let read_conn = sec.read_connectivity().expect("read connectivity");
+        assert_eq!(read_conn, conn);
+
+        let arr = sec.read_connectivity_ndarray().expect("ndarray");
+        assert_eq!(arr.shape(), &[1, 8]);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Multiple sections in one zone
+// ---------------------------------------------------------------------------
+#[test]
+fn test_unstructured_multiple_sections() {
+    let path = test_path("multi_section");
+    let _ = std::fs::remove_file(&path);
+
+    let tri_conn: Vec<i64> = vec![1, 2, 3];
+    let tet_conn: Vec<i64> = vec![1, 2, 3, 4];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base.create_zone_unstructured("Zone", 4, 2).expect("create zone");
+        zone.write_section("Tris", ElementType::Tri3, 1, 1, 0, &tri_conn).expect("write tris");
+        zone.write_section("Tets", ElementType::Tetra4, 2, 2, 0, &tet_conn).expect("write tets");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let secs = zone.sections().expect("sections");
+        assert_eq!(secs.len(), 2);
+
+        let tri = zone.section("Tris").expect("find Tris");
+        assert_eq!(tri.read_connectivity().expect("conn"), tri_conn);
+
+        let tet = zone.section("Tets").expect("find Tets");
+        assert_eq!(tet.read_connectivity().expect("conn"), tet_conn);
     }
 
     std::fs::remove_file(&path).ok();
