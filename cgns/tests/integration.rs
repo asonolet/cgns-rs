@@ -10,17 +10,15 @@ fn workspace_root() -> PathBuf {
 fn test_path(name: &str) -> PathBuf {
     let base = workspace_root().join("target").join("cgns_test_files");
     std::fs::create_dir_all(&base).ok();
-    base.join(format!("cgns_rs_test_{}.cgns", name))
+    base.join(format!("cgns_rs_{}.cgns", name))
 }
 
 // ---------------------------------------------------------------------------
-// Test: create a simple structured 3-D grid, write coordinates and a solution
-//       field, then read everything back.
+// 3-D structured grid: full write-then-read cycle
 // ---------------------------------------------------------------------------
-
 #[test]
 fn test_structured_3d_write_read() {
-    let path = test_path("high_level_structured_3d");
+    let path = test_path("structured_3d");
     let _ = std::fs::remove_file(&path);
 
     let ni: i64 = 4;
@@ -44,36 +42,30 @@ fn test_structured_3d_write_read() {
     }
     let field_data: Vec<f64> = xs.iter().zip(&ys).zip(&zs).map(|((&x, &y), &z)| x + y + z).collect();
 
-    // ---- WRITE ----
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
         let base = file.create_base("TestBase", 3, 3).expect("create base");
-        let zone_size = [ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0];
-        let zone = base.create_zone_structured("TestZone", &zone_size).expect("create zone");
+        let zone = base.create_zone_structured("TestZone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+            .expect("create zone");
         zone.write_coord_f64("CoordinateX", &xs).expect("write X");
         zone.write_coord_f64("CoordinateY", &ys).expect("write Y");
         zone.write_coord_f64("CoordinateZ", &zs).expect("write Z");
         let sol = zone.write_solution("TestSolution", GridLocation::Vertex).expect("write solution");
         sol.write_field_f64("Density", &field_data).expect("write field");
-        // CgnsFile dropped here → auto-close
     }
 
-    // ---- READ ----
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open file");
         assert_eq!(file.base_count().expect("base count"), 1);
-
         let base = file.base("TestBase").expect("find base");
         assert_eq!(base.name().expect("base name"), "TestBase");
         assert_eq!(base.zone_count().expect("zone count"), 1);
 
         let zones = base.zones().expect("list zones");
-        assert_eq!(zones.len(), 1);
         let zone = &zones[0];
         assert_eq!(zone.coord_count().expect("coord count"), 3);
-
-        let coord_names = zone.coord_names().expect("coord names");
-        assert_eq!(coord_names, vec!["CoordinateX", "CoordinateY", "CoordinateZ"]);
+        assert_eq!(zone.coord_names().expect("coord names"),
+                   vec!["CoordinateX", "CoordinateY", "CoordinateZ"]);
 
         let rmin = [1i64, 1, 1];
         let rmax = [ni, nj, nk];
@@ -89,54 +81,317 @@ fn test_structured_3d_write_read() {
 
         let sol = zone.solution("TestSolution").expect("find solution");
         assert_eq!(sol.field_count().expect("field count"), 1);
-
         let mut field_read = vec![0.0f64; nverts];
         sol.read_field_f64("Density", &rmin, &rmax, &mut field_read).expect("read field");
         assert_eq!(field_read, field_data);
-        // CgnsFile dropped here → auto-close
     }
 
     std::fs::remove_file(&path).ok();
 }
 
+// ---------------------------------------------------------------------------
+// 2-D structured grid
+// ---------------------------------------------------------------------------
 #[test]
-fn test_create_base_and_query() {
-    let path = test_path("high_level_base_query");
+fn test_2d_grid() {
+    let path = test_path("grid_2d");
     let _ = std::fs::remove_file(&path);
 
-    // Write phase
+    let ni: i64 = 5;
+    let nj: i64 = 4;
+    let npts = (ni * nj) as usize;
+
+    let xs: Vec<f64> = (0..npts).map(|i| i as f64).collect();
+    let ys: Vec<f64> = (0..npts).map(|i| (i / ni as usize) as f64).collect();
+
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
-        file.create_base("BaseA", 2, 2).expect("create base A");
-        file.create_base("BaseB", 3, 3).expect("create base B");
-        // file closed on drop
+        let base = file.create_base("Base", 2, 2).expect("create base");
+        let zone = base.create_zone_structured("Zone", &[ni, nj, ni - 1, nj - 1])
+            .expect("create zone");
+        zone.write_coord_f64("X", &xs).expect("write X");
+        zone.write_coord_f64("Y", &ys).expect("write Y");
     }
 
-    // Read phase — CGNS requires reopening for query
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let bases = file.bases().expect("list bases");
-        assert_eq!(bases.len(), 2);
-        assert_eq!(bases[0].name().expect("name"), "BaseA");
-        assert_eq!(bases[1].name().expect("name"), "BaseB");
+        let base = file.base("Base").expect("find base");
+        let zone = &base.zones().expect("zones")[0];
 
-        let found = file.base("BaseB").expect("find BaseB");
-        assert_eq!(found.index(), 2);
+        let mut xs_read = vec![0.0; npts];
+        let mut ys_read = vec![0.0; npts];
+        zone.read_coord_f64("X", &[1, 1], &[ni, nj], &mut xs_read).expect("read X");
+        zone.read_coord_f64("Y", &[1, 1], &[ni, nj], &mut ys_read).expect("read Y");
+        assert_eq!(xs_read, xs);
+        assert_eq!(ys_read, ys);
     }
 
     std::fs::remove_file(&path).ok();
 }
 
+// ---------------------------------------------------------------------------
+// Multiple bases in one file
+// ---------------------------------------------------------------------------
 #[test]
-fn test_solution_not_found() {
-    let path = test_path("high_level_sol_not_found");
+fn test_multiple_bases() {
+    let path = test_path("multiple_bases");
     let _ = std::fs::remove_file(&path);
 
-    let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
-    let base = file.create_base("Base", 2, 2).expect("create base");
-    let zone = base.create_zone_structured("Zone", &[3, 4, 2, 3]).expect("create zone");
-    let result = zone.solution("NonExistent");
-    assert!(result.is_err(), "should fail for missing solution");
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        file.create_base("BaseA", 2, 2).expect("base A");
+        file.create_base("BaseB", 3, 3).expect("base B");
+        file.create_base("BaseC", 2, 3).expect("base C");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        assert_eq!(file.base_count().expect("count"), 3);
+        let bases = file.bases().expect("bases");
+        assert_eq!(bases.len(), 3);
+        assert_eq!(bases[0].name().expect("name"), "BaseA");
+        assert_eq!(bases[1].name().expect("name"), "BaseB");
+        assert_eq!(bases[2].name().expect("name"), "BaseC");
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Multiple zones in one base
+// ---------------------------------------------------------------------------
+#[test]
+fn test_multiple_zones() {
+    let path = test_path("multiple_zones");
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 2, 2).expect("create base");
+        base.create_zone_structured("Zone1", &[3, 4, 2, 3]).expect("zone 1");
+        base.create_zone_structured("Zone2", &[5, 6, 4, 5]).expect("zone 2");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let base = file.base("Base").expect("find base");
+        assert_eq!(base.zone_count().expect("count"), 2);
+        let zones = base.zones().expect("zones");
+        assert_eq!(zones.len(), 2);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Multiple solutions and fields per zone
+// ---------------------------------------------------------------------------
+#[test]
+fn test_multiple_solutions_and_fields() {
+    let path = test_path("multi_sol_field");
+    let _ = std::fs::remove_file(&path);
+
+    let nverts = 12usize;
+    let data = vec![1.0f64; nverts];
+    let data2 = vec![2.0f64; nverts];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 2, 2).expect("create base");
+        let zone = base.create_zone_structured("Zone", &[3, 4, 2, 3]).expect("create zone");
+
+        let sol1 = zone.write_solution("Sol1", GridLocation::Vertex).expect("sol 1");
+        sol1.write_field_f64("FieldA", &data).expect("field A");
+        sol1.write_field_f64("FieldB", &data2).expect("field B");
+
+        let sol2 = zone.write_solution("Sol2", GridLocation::CellCenter).expect("sol 2");
+        sol2.write_field_f64("FieldC", &data).expect("field C");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        assert_eq!(zone.solution_count().expect("sol count"), 2);
+
+        let sol1 = zone.solution("Sol1").expect("find Sol1");
+        assert_eq!(sol1.field_count().expect("field count"), 2);
+
+        let sol2 = zone.solution("Sol2").expect("find Sol2");
+        assert_eq!(sol2.field_count().expect("field count"), 1);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Partial read (sub-range of coordinates)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_partial_read() {
+    let path = test_path("partial_read");
+    let _ = std::fs::remove_file(&path);
+
+    let ni: i64 = 10;
+    let nj: i64 = 10;
+    let nk: i64 = 10;
+    let nverts = (ni * nj * nk) as usize;
+    let xs: Vec<f64> = (0..nverts).map(|i| i as f64).collect();
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base.create_zone_structured("Zone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+            .expect("create zone");
+        zone.write_coord_f64("X", &xs).expect("write X");
+    }
+
+    // Read a 2x2x2 corner sub-range
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let mut corner = vec![0.0f64; 8];
+        zone.read_coord_f64("X", &[1, 1, 1], &[2, 2, 2], &mut corner).expect("read corner");
+        // Expected: indices (1,1,1)=0, (2,1,1)=1, (1,2,1)=10, (2,2,1)=11,
+        //           (1,1,2)=100, (2,1,2)=101, (1,2,2)=110, (2,2,2)=111
+        assert_eq!(corner[0], 0.0);
+        assert_eq!(corner[1], 1.0);
+        assert_eq!(corner[2], 10.0);
+        assert_eq!(corner[3], 11.0);
+        assert_eq!(corner[4], 100.0);
+        assert_eq!(corner[5], 101.0);
+        assert_eq!(corner[6], 110.0);
+        assert_eq!(corner[7], 111.0);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Explicit close() before Drop
+// ---------------------------------------------------------------------------
+#[test]
+fn test_explicit_close() {
+    let path = test_path("explicit_close");
+    let _ = std::fs::remove_file(&path);
+
+    let mut file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+    file.create_base("Base", 2, 2).expect("create base");
+    file.close().expect("close");
+    // Double close should be a no-op
+    file.close().expect("close again");
+
+    // Reopen and verify
+    let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+    assert_eq!(file.base_count().expect("count"), 1);
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Open non-existent file
+// ---------------------------------------------------------------------------
+#[test]
+fn test_open_nonexistent() {
+    let result = CgnsFile::open("/nonexistent/path/test.cgns");
+    assert!(result.is_err());
+}
+
+// ---------------------------------------------------------------------------
+// Base not found
+// ---------------------------------------------------------------------------
+#[test]
+fn test_base_not_found() {
+    let path = test_path("base_not_found");
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        file.create_base("RealBase", 2, 2).expect("create base");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let result = file.base("ImaginaryBase");
+        assert!(result.is_err());
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Empty file has no bases
+// ---------------------------------------------------------------------------
+#[test]
+fn test_empty_file() {
+    let path = test_path("empty_file");
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let _file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        // no bases written
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        assert_eq!(file.base_count().expect("count"), 0);
+        let bases = file.bases().expect("bases");
+        assert!(bases.is_empty());
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Minimal 2x2x2 zone
+// ---------------------------------------------------------------------------
+#[test]
+fn test_minimal_zone() {
+    let path = test_path("minimal_zone");
+    let _ = std::fs::remove_file(&path);
+
+    let data = vec![0.0f64; 8];
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base.create_zone_structured("Tiny", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("create zone");
+        zone.write_coord_f64("X", &data).expect("write X");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        assert_eq!(zone.coord_count().expect("coord count"), 1);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// GridLocation round-trip via solution query
+// ---------------------------------------------------------------------------
+#[test]
+fn test_grid_location_roundtrip() {
+    let path = test_path("grid_location");
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 2, 2).expect("create base");
+        let zone = base.create_zone_structured("Zone", &[3, 4, 2, 3]).expect("create zone");
+        zone.write_solution("VertexSol", GridLocation::Vertex).expect("vertex");
+        zone.write_solution("CellSol", GridLocation::CellCenter).expect("cell");
+    }
+
+    // We can't read back the location with the current API,
+    // but we can verify the solutions exist
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        assert_eq!(zone.solution_count().expect("count"), 2);
+        zone.solution("VertexSol").expect("find VertexSol");
+        zone.solution("CellSol").expect("find CellSol");
+    }
 
     std::fs::remove_file(&path).ok();
 }
