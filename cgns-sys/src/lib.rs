@@ -118,7 +118,11 @@
 //! | Group | Priority | Notes |
 //! |---|---|---|
 //! | `open_modify` (`CG_MODE_MODIFY`) | high | Append to an existing file |
-//! | `cg_section_*` / `cg_elements_*` | high | Unstructured grid support |
+//! | Unstructured zones | [`zone_write_unstructured`] | `cg_zone_write` (with `Unstructured`) |
+//! | Sections | [`section_write`] | `cg_section_write` |
+//! | Sections | [`nsections`] | `cg_nsections` |
+//! | Elements | [`element_data_size`] | `cg_ElementDataSize` |
+//! | Elements | [`elements_read`] | `cg_elements_read` |
 //! | `cg_boco_*` | high | Boundary conditions |
 //! | `cg_conn_*` / `cg_1to1_*` | medium | Zone connectivity |
 //! | `cg_family_*` | medium | Family definitions |
@@ -306,6 +310,111 @@ pub fn zone_write_structured(
             c_name.as_ptr(),
             size.as_ptr(),
             ZoneType_t_Structured,
+            &mut zone,
+        )
+    };
+    status_to_result(status).map(|_| zone)
+}
+
+/// Write an unstructured zone section (element connectivity).
+///
+/// `elements` is the flat connectivity array (1-based node indices in
+/// Fortran order).  Returns the section index on success.
+pub fn section_write(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    elem_type: u32,
+    start: i64,
+    end: i64,
+    nbndry: i32,
+    elements: &[i64],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name)
+        .map_err(|e| format!("invalid section name: {}", e))?;
+    let mut section_idx: i32 = 0;
+    let status = unsafe {
+        cg_section_write(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            elem_type,
+            start,
+            end,
+            nbndry,
+            elements.as_ptr(),
+            &mut section_idx,
+        )
+    };
+    status_to_result(status).map(|_| section_idx)
+}
+
+/// Return the number of sections in a zone.
+pub fn nsections(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nsections(fn_, base, zone, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Return the size (in `cgsize_t` elements) of a section's connectivity array.
+pub fn element_data_size(fn_: i32, base: i32, zone: i32, section: i32) -> Result<i64, String> {
+    let _guard = lock_cgns();
+    let mut size: i64 = 0;
+    let status = unsafe {
+        cg_ElementDataSize(fn_, base, zone, section, &mut size)
+    };
+    status_to_result(status).map(|_| size)
+}
+
+/// Read a section's element connectivity.
+///
+/// `elements` must be pre-allocated to the correct size (retrieved via
+/// [`element_data_size`]).
+pub fn elements_read(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    section: i32,
+    elements: &mut [i64],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_elements_read(
+            fn_,
+            base,
+            zone,
+            section,
+            elements.as_mut_ptr(),
+            std::ptr::null_mut(),
+        )
+    };
+    status_to_result(status)
+}
+
+/// Write an unstructured zone.
+///
+/// `size` must have 3 entries: `[num_vertices, num_elements, 0]`.
+pub fn zone_write_unstructured(
+    fn_: i32,
+    base: i32,
+    name: &str,
+    size: &[i64],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name)
+        .map_err(|e| format!("invalid zone name: {}", e))?;
+    let mut zone: i32 = 0;
+    let status = unsafe {
+        cg_zone_write(
+            fn_,
+            base,
+            c_name.as_ptr(),
+            size.as_ptr(),
+            ZoneType_t_Unstructured,
             &mut zone,
         )
     };
