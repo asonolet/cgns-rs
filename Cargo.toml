@@ -1,5 +1,5 @@
 [workspace]
-members = ["cgns-sys", "cgns"]
+members = ["cgns-sys", "cgns", "cgns-tools"]
 resolver = "2"
 
 [workspace.package]

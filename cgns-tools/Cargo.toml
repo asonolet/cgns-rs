@@ -1,0 +1,35 @@
+[package]
+name = "cgns-tools"
+version.workspace = true
+edition.workspace = true
+description = "CGNS CLI tools (cgns-list, cgns-check, cgns-convert, cgns-diff, cgns-compress, cgns-names)"
+
+[dependencies]
+cgns-sys = { path = "../cgns-sys" }
+
+[build-dependencies]
+cc = "1.2"
+
+[[bin]]
+name = "cgns-list"
+path = "src/bin/cgns-list.rs"
+
+[[bin]]
+name = "cgns-check"
+path = "src/bin/cgns-check.rs"
+
+[[bin]]
+name = "cgns-convert"
+path = "src/bin/cgns-convert.rs"
+
+[[bin]]
+name = "cgns-diff"
+path = "src/bin/cgns-diff.rs"
+
+[[bin]]
+name = "cgns-compress"
+path = "src/bin/cgns-compress.rs"
+
+[[bin]]
+name = "cgns-names"
+path = "src/bin/cgns-names.rs"
