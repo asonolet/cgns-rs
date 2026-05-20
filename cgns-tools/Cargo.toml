@@ -7,6 +7,9 @@ description = "CGNS CLI tools (cgns-list, cgns-check, cgns-convert, cgns-diff, c
 [dependencies]
 cgns-sys = { path = "../cgns-sys" }
 
+[dev-dependencies]
+cgns = { path = "../cgns" }
+
 [build-dependencies]
 cc = "1.2"
 
