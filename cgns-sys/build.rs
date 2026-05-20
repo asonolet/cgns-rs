@@ -532,6 +532,17 @@ fn main() {
     // 4. Emit link directives
     emit_link_directives(&hdf5_install, &cgns_install);
 
+    // 4b. Emit metadata for dependents (used by cgns-tools)
+    println!(
+        "cargo:include_dir={}:{}",
+        cgns_install.join("include").display(),
+        hdf5_install.join("include").display(),
+    );
+    println!(
+        "cargo:tools_src_dir={}",
+        vendor_dir.join("cgns").join("src").join("tools").display(),
+    );
+
     // 5. Generate Rust bindings
     generate_bindings(&cgns_install, &hdf5_install);
 
