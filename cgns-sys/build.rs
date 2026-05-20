@@ -78,7 +78,7 @@ where
     S: AsRef<OsStr>,
 {
     println!(
-        "cargo:warning=  running: {} {}",
+        "  running: {} {}",
         cmd,
         args.iter()
             .map(|a| a.as_ref().to_string_lossy().to_string())
@@ -120,7 +120,7 @@ fn check_cmake() {
             ver_str, CMAKE_MIN_VER
         );
     }
-    println!("cargo:warning=cmake {} found at {}", ver_str, which("cmake"));
+    println!("cmake {} found at {}", ver_str, which("cmake"));
 }
 
 /// Simple `which`-like lookup (Unix-only fallback).
@@ -145,7 +145,7 @@ fn which(name: &str) -> String {
 /// Download a URL to a file using curl (or fetch on FreeBSD).
 fn download(url: &str, dest: &Path) {
     if dest.exists() {
-        println!("cargo:warning=  already downloaded: {}", dest.display());
+        println!("  already downloaded: {}", dest.display());
         return;
     }
     let dir = dest.parent().unwrap();
@@ -222,13 +222,14 @@ fn build_hdf5(vendor_dir: &Path) -> PathBuf {
             || dir.join("lib").join("hdf5.lib").exists()
             || dir.join("lib").join("libhdf5.lib").exists()
         {
-            println!("cargo:warning=using system HDF5 from HDF5_DIR={}", dir.display());
+                println!("using system HDF5 from HDF5_DIR={}", dir.display());
             return dir;
         }
         // HDF5_DIR set but no library found — we will still use it as a hint
         // (the CGNS cmake will fail if it can't find HDF5, which is an
         // acceptable error).
         println!("cargo:warning=HDF5_DIR set but no HDF5 library found in {:?}", dir);
+        // ^ intentional cargo:warning — user configuration error
     }
 
     if env::var("CGNS_RS_NO_BUILD_HDF5").as_deref() == Ok("1") {
@@ -246,7 +247,7 @@ fn build_hdf5(vendor_dir: &Path) -> PathBuf {
         // Download and extract HDF5 sources
         let archive = vendor_dir.join(format!("hdf5-{}.tar.gz", HDF5_VERSION));
         println!(
-            "cargo:warning=Downloading HDF5 {} (this may take a while)...",
+            "Downloading HDF5 {} (this may take a while)...",
             HDF5_VERSION
         );
         download(HDF5_URL, &archive);
@@ -256,11 +257,11 @@ fn build_hdf5(vendor_dir: &Path) -> PathBuf {
     if install_dir.join("lib").join(format!("lib{}.a", hdf5_lib_name())).exists()
         || install_dir.join("lib").join(format!("{}.lib", hdf5_lib_name())).exists()
     {
-        println!("cargo:warning=HDF5 already built, skipping build");
+        println!("HDF5 already built, skipping build");
         return install_dir;
     }
 
-    println!("cargo:warning=Configuring HDF5 {}...", HDF5_VERSION);
+    println!("Configuring HDF5 {}...", HDF5_VERSION);
 
     // Remove stale build directory
     if build_dir.exists() {
@@ -299,7 +300,7 @@ fn build_hdf5(vendor_dir: &Path) -> PathBuf {
 
     run("cmake", &cmake_args, "configure HDF5");
 
-    println!("cargo:warning=Building HDF5...");
+    println!("Building HDF5...");
     run(
         "cmake",
         &[
@@ -315,7 +316,7 @@ fn build_hdf5(vendor_dir: &Path) -> PathBuf {
         "build HDF5",
     );
 
-    println!("cargo:warning=Installing HDF5...");
+    println!("Installing HDF5...");
     run(
         "cmake",
         &[
@@ -343,7 +344,7 @@ fn build_cgns(vendor_dir: &Path, hdf5_install: &Path) -> PathBuf {
     if install_dir.join("lib").join("libcgns.a").exists()
         || install_dir.join("lib").join("cgns.lib").exists()
     {
-        println!("cargo:warning=CGNS already built, skipping build");
+        println!("CGNS already built, skipping build");
         return install_dir;
     }
 
@@ -353,7 +354,7 @@ fn build_cgns(vendor_dir: &Path, hdf5_install: &Path) -> PathBuf {
     fs::create_dir_all(&build_dir).unwrap();
     fs::create_dir_all(&install_dir).unwrap();
 
-    println!("cargo:warning=Configuring CGNS...");
+    println!("Configuring CGNS...");
 
     let cgns_src_s = cgns_src.to_string_lossy().to_string();
     let build_dir_s = build_dir.to_string_lossy().to_string();
@@ -379,7 +380,7 @@ fn build_cgns(vendor_dir: &Path, hdf5_install: &Path) -> PathBuf {
 
     run("cmake", &cmake_args, "configure CGNS");
 
-    println!("cargo:warning=Building CGNS...");
+    println!("Building CGNS...");
     run(
         "cmake",
         &[
@@ -393,7 +394,7 @@ fn build_cgns(vendor_dir: &Path, hdf5_install: &Path) -> PathBuf {
         "build CGNS",
     );
 
-    println!("cargo:warning=Installing CGNS...");
+    println!("Installing CGNS...");
     run(
         "cmake",
         &[
@@ -499,7 +500,7 @@ fn generate_bindings(cgns_install: &Path, hdf5_install: &Path) {
         .write_to_file(&output)
         .expect("bindgen failed to write bindings");
 
-    println!("cargo:warning=bindings written to {}", output.display());
+    println!("bindings written to {}", output.display());
 }
 
 /// Return a string like "4" (number of available CPUs + 1).
@@ -518,7 +519,7 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let vendor_dir = manifest_dir.join("vendor");
 
-    println!("cargo:warning=Starting CGNS build (cgns-sys)");
+    println!("Starting CGNS build (cgns-sys)");
 
     // 1. Prerequisites
     check_cmake();
@@ -556,5 +557,5 @@ fn main() {
         );
     }
     println!("cargo:rerun-if-changed=wrapper.h");
-    println!("cargo:warning=CGNS build complete");
+    println!("CGNS build complete");
 }

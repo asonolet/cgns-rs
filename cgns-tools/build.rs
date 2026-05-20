@@ -23,8 +23,11 @@ const TOOLS: &[(&str, &[&str])] = &[
 /// Common source files needed by all (or most) tools.
 const COMMON_SOURCES: &[&str] = &["getargs.c", "hash.c", "cgnames.c"];
 
-/// C files for which we should suppress some compiler warnings.
-const WARN_SUPPRESS: &[&str] = &["cgnscheck.c"];
+/// Files with extra warnings to suppress (from upstream CGNS code).
+const WARN_SUPPRESS_EXTRA: &[(&str, &[&str])] = &[
+    ("cgnscheck.c", &["-Wno-unused-but-set-variable"]),
+    ("cgnsnames.c", &["-Wno-unused-parameter"]),
+];
 
 fn target_is_windows_msvc() -> bool {
     let target = env::var("TARGET").unwrap_or_default();
@@ -79,10 +82,17 @@ fn main() {
         build.define("main", Some(main_name.as_str()));
         for src in *sources {
             let path = tools_src_dir.join(src);
-            if WARN_SUPPRESS.contains(src) {
-                build.file(path).flag_if_supported("-Wno-unused-function");
-            } else {
-                build.file(path);
+            build.file(path);
+            // Suppress known upstream warnings
+            if *src == "cgnscheck.c" {
+                build.flag_if_supported("-Wno-unused-function");
+            }
+            for &(fname, flags) in WARN_SUPPRESS_EXTRA {
+                if *src == fname {
+                    for flag in flags {
+                        build.flag_if_supported(flag);
+                    }
+                }
             }
         }
         build.compile(&format!("cgns_tool_{}", tool));
