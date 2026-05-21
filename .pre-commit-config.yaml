@@ -38,7 +38,7 @@ repos:
 
       - id: cargo-clippy
         name: cargo clippy
-        description: Auto-fix clippy warnings, then deny remaining.
+        description: Check clippy warnings, deny any remaining.
         entry: cargo clippy --workspace --all-targets -- -D warnings -W clippy::missing_const_for_fn -W clippy::todo
         language: system
         types: [rust]
