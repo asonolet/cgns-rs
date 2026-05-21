@@ -44,8 +44,8 @@
 //!
 //! # Updating CGNS
 //!
-//! 1. Update the git submodule:  
-//!    `git -C cgns-sys/vendor/cgns fetch --tags`  
+//! 1. Update the git submodule:
+//!    `git -C cgns-sys/vendor/cgns fetch --tags`
 //!    `git -C cgns-sys/vendor/cgns checkout <new-tag>`
 //! 2. Update the HDF5 version in `build.rs` if needed.
 //! 3. Rebuild – `bindgen` automatically re-runs on any CGNS header change.
@@ -195,9 +195,7 @@ pub fn error_message() -> String {
         if ptr.is_null() {
             "unknown CGNS error".to_string()
         } else {
-            std::ffi::CStr::from_ptr(ptr)
-                .to_string_lossy()
-                .into_owned()
+            std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned()
         }
     }
 }
@@ -256,8 +254,8 @@ pub fn ensure_hdf5_backend() {
 pub fn open_write(filename: &str) -> Result<i32, String> {
     let _guard = lock_cgns();
     ensure_hdf5_backend();
-    let c_filename = std::ffi::CString::new(filename)
-        .map_err(|e| format!("invalid filename: {}", e))?;
+    let c_filename =
+        std::ffi::CString::new(filename).map_err(|e| format!("invalid filename: {}", e))?;
     let mut fn_: i32 = 0;
     let status = unsafe { cg_open(c_filename.as_ptr(), CG_MODE_WRITE as i32, &mut fn_) };
     status_to_result(status).map(|_| fn_)
@@ -268,8 +266,8 @@ pub fn open_write(filename: &str) -> Result<i32, String> {
 /// Returns the CGNS file number on success.
 pub fn open_read(filename: &str) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_filename = std::ffi::CString::new(filename)
-        .map_err(|e| format!("invalid filename: {}", e))?;
+    let c_filename =
+        std::ffi::CString::new(filename).map_err(|e| format!("invalid filename: {}", e))?;
     let mut fn_: i32 = 0;
     let status = unsafe { cg_open(c_filename.as_ptr(), CG_MODE_READ as i32, &mut fn_) };
     status_to_result(status).map(|_| fn_)
@@ -285,23 +283,16 @@ pub fn close(fn_: i32) -> Result<(), String> {
 /// Write a CGNS base node.
 pub fn base_write(fn_: i32, name: &str, cell_dim: i32, phys_dim: i32) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid base name: {}", e))?;
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid base name: {}", e))?;
     let mut base: i32 = 0;
     let status = unsafe { cg_base_write(fn_, c_name.as_ptr(), cell_dim, phys_dim, &mut base) };
     status_to_result(status).map(|_| base)
 }
 
 /// Write a structured zone.
-pub fn zone_write_structured(
-    fn_: i32,
-    base: i32,
-    name: &str,
-    size: &[i64],
-) -> Result<i32, String> {
+pub fn zone_write_structured(fn_: i32, base: i32, name: &str, size: &[i64]) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid zone name: {}", e))?;
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid zone name: {}", e))?;
     let mut zone: i32 = 0;
     let status = unsafe {
         cg_zone_write(
@@ -320,6 +311,7 @@ pub fn zone_write_structured(
 ///
 /// `elements` is the flat connectivity array (1-based node indices in
 /// Fortran order).  Returns the section index on success.
+#[allow(clippy::too_many_arguments)]
 pub fn section_write(
     fn_: i32,
     base: i32,
@@ -332,8 +324,8 @@ pub fn section_write(
     elements: &[i64],
 ) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid section name: {}", e))?;
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid section name: {}", e))?;
     let mut section_idx: i32 = 0;
     let status = unsafe {
         cg_section_write(
@@ -364,9 +356,7 @@ pub fn nsections(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
 pub fn element_data_size(fn_: i32, base: i32, zone: i32, section: i32) -> Result<i64, String> {
     let _guard = lock_cgns();
     let mut size: i64 = 0;
-    let status = unsafe {
-        cg_ElementDataSize(fn_, base, zone, section, &mut size)
-    };
+    let status = unsafe { cg_ElementDataSize(fn_, base, zone, section, &mut size) };
     status_to_result(status).map(|_| size)
 }
 
@@ -405,8 +395,7 @@ pub fn zone_write_unstructured(
     size: &[i64],
 ) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid zone name: {}", e))?;
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid zone name: {}", e))?;
     let mut zone: i32 = 0;
     let status = unsafe {
         cg_zone_write(
@@ -434,8 +423,8 @@ pub fn coord_write(
     data: &[f64],
 ) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
     let mut coord_idx: i32 = 0;
     let status = unsafe {
         cg_coord_write(
@@ -452,20 +441,12 @@ pub fn coord_write(
 }
 
 /// Write a solution node.
-pub fn sol_write(
-    fn_: i32,
-    base: i32,
-    zone: i32,
-    name: &str,
-    location: u32,
-) -> Result<i32, String> {
+pub fn sol_write(fn_: i32, base: i32, zone: i32, name: &str, location: u32) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid solution name: {}", e))?;
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid solution name: {}", e))?;
     let mut sol: i32 = 0;
-    let status = unsafe {
-        cg_sol_write(fn_, base, zone, c_name.as_ptr(), location, &mut sol)
-    };
+    let status = unsafe { cg_sol_write(fn_, base, zone, c_name.as_ptr(), location, &mut sol) };
     status_to_result(status).map(|_| sol)
 }
 
@@ -480,8 +461,7 @@ pub fn field_write(
     data: &[f64],
 ) -> Result<i32, String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid field name: {}", e))?;
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
     let mut field: i32 = 0;
     let status = unsafe {
         cg_field_write(
@@ -503,6 +483,7 @@ pub fn field_write(
 /// `name` is the coordinate name (e.g. "CoordinateX") and `rmin` / `rmax`
 /// specify the (1-based) index range to read.  The data is written into
 /// the pre-allocated `data` slice.
+#[allow(clippy::too_many_arguments)]
 pub fn coord_read(
     fn_: i32,
     base: i32,
@@ -514,8 +495,8 @@ pub fn coord_read(
     data: &mut [f64],
 ) -> Result<(), String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
     let status = unsafe {
         cg_coord_read(
             fn_,
@@ -532,6 +513,7 @@ pub fn coord_read(
 }
 
 /// Read a flow solution field.
+#[allow(clippy::too_many_arguments)]
 pub fn field_read(
     fn_: i32,
     base: i32,
@@ -544,8 +526,7 @@ pub fn field_read(
     data: &mut [f64],
 ) -> Result<(), String> {
     let _guard = lock_cgns();
-    let c_name = std::ffi::CString::new(name)
-        .map_err(|e| format!("invalid field name: {}", e))?;
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
     let status = unsafe {
         cg_field_read(
             fn_,

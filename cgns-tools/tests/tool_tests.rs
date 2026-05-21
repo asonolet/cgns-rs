@@ -43,13 +43,25 @@ fn test_cgns_list() {
         .arg(&path)
         .output()
         .expect("failed to run cgns-list");
-    assert!(output.status.success(), "cgns-list failed: {}",
-        String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "cgns-list failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     // The tree view uses +- prefixes; pick a few known entries
-    assert!(stdout.contains("BaseStructured2D"), "missing BaseStructured2D");
-    assert!(stdout.contains("BaseUnstructured"), "missing BaseUnstructured");
-    assert!(stdout.contains("ElementConnectivity"), "missing connectivity");
+    assert!(
+        stdout.contains("BaseStructured2D"),
+        "missing BaseStructured2D"
+    );
+    assert!(
+        stdout.contains("BaseUnstructured"),
+        "missing BaseUnstructured"
+    );
+    assert!(
+        stdout.contains("ElementConnectivity"),
+        "missing connectivity"
+    );
 }
 
 #[test]
@@ -61,8 +73,11 @@ fn test_cgns_check() {
         .arg(&path)
         .output()
         .expect("failed to run cgns-check");
-    assert!(output.status.success(), "cgns-check failed: {}",
-        String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "cgns-check failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]
@@ -80,10 +95,17 @@ fn test_cgns_diff_self() {
         .expect("failed to run cgns-diff");
     let _ = std::fs::remove_file(&copy);
 
-    assert!(output.status.success(), "cgns-diff (copy) failed: {}",
-        String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "cgns-diff (copy) failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.trim().is_empty(), "unexpected diff output: {}", stdout);
+    assert!(
+        stdout.trim().is_empty(),
+        "unexpected diff output: {}",
+        stdout
+    );
 }
 
 #[test]
@@ -98,17 +120,25 @@ fn test_cgns_compress() {
         .arg(&dst)
         .output()
         .expect("failed to run cgns-compress");
-    assert!(output.status.success(), "cgns-compress failed: {}",
-        String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "cgns-compress failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(dst.exists(), "compressed file not created");
-    assert!(dst.metadata().map(|m| m.len() > 0).unwrap_or(false),
-        "compressed file is empty");
+    assert!(
+        dst.metadata().map(|m| m.len() > 0).unwrap_or(false),
+        "compressed file is empty"
+    );
 
     let check_output = Command::new(binary_path("cgns-check"))
         .arg(&dst)
         .output()
         .expect("failed to run cgns-check on compressed file");
-    assert!(check_output.status.success(), "compressed file fails cgns-check");
+    assert!(
+        check_output.status.success(),
+        "compressed file fails cgns-check"
+    );
 
     let _ = std::fs::remove_file(&dst);
 }
@@ -120,8 +150,11 @@ fn test_cgns_names() {
     let output = Command::new(&bin)
         .output()
         .expect("failed to run cgns-names");
-    assert!(output.status.success(), "cgns-names failed: {}",
-        String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "cgns-names failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Density"), "cgns-names missing Density");
     assert!(stdout.contains("Pressure"), "cgns-names missing Pressure");

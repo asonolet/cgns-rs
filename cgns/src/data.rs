@@ -21,7 +21,7 @@ pub enum GridLocation {
 }
 
 impl GridLocation {
-    pub fn to_raw(self) -> u32 {
+    pub const fn to_raw(self) -> u32 {
         match self {
             Self::Vertex => cgns_sys::GridLocation_t_Vertex,
             Self::CellCenter => cgns_sys::GridLocation_t_CellCenter,
@@ -34,7 +34,7 @@ impl GridLocation {
         }
     }
 
-    pub fn from_raw(raw: u32) -> Option<Self> {
+    pub const fn from_raw(raw: u32) -> Option<Self> {
         match raw {
             x if x == cgns_sys::GridLocation_t_Vertex => Some(Self::Vertex),
             x if x == cgns_sys::GridLocation_t_CellCenter => Some(Self::CellCenter),
@@ -60,7 +60,7 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn to_raw(self) -> u32 {
+    pub const fn to_raw(self) -> u32 {
         match self {
             Self::I4 => cgns_sys::DataType_t_Integer,
             Self::I8 => cgns_sys::DataType_t_LongInteger,
@@ -70,7 +70,7 @@ impl DataType {
         }
     }
 
-    pub fn from_raw(raw: u32) -> Option<Self> {
+    pub const fn from_raw(raw: u32) -> Option<Self> {
         match raw {
             x if x == cgns_sys::DataType_t_Integer => Some(Self::I4),
             x if x == cgns_sys::DataType_t_LongInteger => Some(Self::I8),
@@ -90,14 +90,14 @@ pub enum ZoneType {
 }
 
 impl ZoneType {
-    pub fn to_raw(self) -> u32 {
+    pub const fn to_raw(self) -> u32 {
         match self {
             Self::Structured => cgns_sys::ZoneType_t_Structured,
             Self::Unstructured => cgns_sys::ZoneType_t_Unstructured,
         }
     }
 
-    pub fn from_raw(raw: u32) -> Option<Self> {
+    pub const fn from_raw(raw: u32) -> Option<Self> {
         match raw {
             x if x == cgns_sys::ZoneType_t_Structured => Some(Self::Structured),
             x if x == cgns_sys::ZoneType_t_Unstructured => Some(Self::Unstructured),
@@ -160,7 +160,7 @@ pub enum ElementType {
 }
 
 impl ElementType {
-    pub fn to_raw(self) -> u32 {
+    pub const fn to_raw(self) -> u32 {
         match self {
             Self::Null => cgns_sys::ElementType_t_ElementTypeNull,
             Self::UserDefined => cgns_sys::ElementType_t_ElementTypeUserDefined,
@@ -188,7 +188,7 @@ impl ElementType {
         }
     }
 
-    pub fn from_raw(raw: u32) -> Option<Self> {
+    pub const fn from_raw(raw: u32) -> Option<Self> {
         match raw {
             x if x == cgns_sys::ElementType_t_ElementTypeNull => Some(Self::Null),
             x if x == cgns_sys::ElementType_t_ElementTypeUserDefined => Some(Self::UserDefined),

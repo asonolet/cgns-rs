@@ -166,5 +166,3 @@ generated bindings. Thin safe wrappers exist for the most common operations
   `Drop` close it) and reopen with `CgnsFile::open`.
 - Only `f64` data is exposed in the high-level wrappers; integer and single-
   precision access requires raw FFI calls or `cgns-sys` helpers.
-
-

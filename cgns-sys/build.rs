@@ -62,8 +62,7 @@ use std::process::Command;
 const HDF5_VERSION: &str = "1.14.6";
 
 /// Download URL for the HDF5 source tarball.
-const HDF5_URL: &str =
-    "https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1.14.6.tar.gz";
+const HDF5_URL: &str = "https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1.14.6.tar.gz";
 
 /// Minimum required CMake version.
 const CMAKE_MIN_VER: &str = "3.20";
@@ -102,10 +101,7 @@ fn check_cmake() {
         .expect("cmake not found — install cmake >= 3.20");
     let stdout = String::from_utf8_lossy(&out.stdout);
     let ver_line = stdout.lines().next().unwrap_or("");
-    let ver_str = ver_line
-        .split_whitespace()
-        .nth(2)
-        .unwrap_or("0.0.0");
+    let ver_str = ver_line.split_whitespace().nth(2).unwrap_or("0.0.0");
     // Simple semver comparison (enough for our check)
     fn parse_ver(v: &str) -> Vec<u32> {
         v.split('.')
@@ -115,10 +111,7 @@ fn check_cmake() {
     let have = parse_ver(ver_str);
     let need = parse_ver(CMAKE_MIN_VER);
     if have < need {
-        panic!(
-            "cmake {} found but >= {} required",
-            ver_str, CMAKE_MIN_VER
-        );
+        panic!("cmake {} found but >= {} required", ver_str, CMAKE_MIN_VER);
     }
     println!("cmake {} found at {}", ver_str, which("cmake"));
 }
@@ -174,7 +167,12 @@ fn extract_tar_gz(archive: &Path, dest_dir: &Path) {
     fs::create_dir_all(dest_dir).ok();
     run(
         "tar",
-        &["-xzf", &archive.to_string_lossy(), "-C", &dest_dir.to_string_lossy()],
+        &[
+            "-xzf",
+            &archive.to_string_lossy(),
+            "-C",
+            &dest_dir.to_string_lossy(),
+        ],
         "extract HDF5 source archive",
     );
 }
@@ -212,23 +210,28 @@ fn build_hdf5(vendor_dir: &Path) -> PathBuf {
     // Allow user override via HDF5_DIR
     if let Ok(hdf5_dir) = env::var("HDF5_DIR") {
         let dir = PathBuf::from(hdf5_dir);
-        if dir.join("lib").join(format!(
-            "{}libhdf5.{}",
-            if cfg!(unix) { "lib" } else { "" },
-            if cfg!(windows) { "lib" } else { "a" },
-        ))
-        .exists()
-            || dir.join("lib").join(format!("libhdf5.a")).exists()
+        if dir
+            .join("lib")
+            .join(format!(
+                "{}libhdf5.{}",
+                if cfg!(unix) { "lib" } else { "" },
+                if cfg!(windows) { "lib" } else { "a" },
+            ))
+            .exists()
+            || dir.join("lib").join("libhdf5.a").exists()
             || dir.join("lib").join("hdf5.lib").exists()
             || dir.join("lib").join("libhdf5.lib").exists()
         {
-                println!("using system HDF5 from HDF5_DIR={}", dir.display());
+            println!("using system HDF5 from HDF5_DIR={}", dir.display());
             return dir;
         }
         // HDF5_DIR set but no library found — we will still use it as a hint
         // (the CGNS cmake will fail if it can't find HDF5, which is an
         // acceptable error).
-        println!("cargo:warning=HDF5_DIR set but no HDF5 library found in {:?}", dir);
+        println!(
+            "cargo:warning=HDF5_DIR set but no HDF5 library found in {:?}",
+            dir
+        );
         // ^ intentional cargo:warning — user configuration error
     }
 
@@ -254,8 +257,14 @@ fn build_hdf5(vendor_dir: &Path) -> PathBuf {
         extract_tar_gz(&archive, vendor_dir);
     }
 
-    if install_dir.join("lib").join(format!("lib{}.a", hdf5_lib_name())).exists()
-        || install_dir.join("lib").join(format!("{}.lib", hdf5_lib_name())).exists()
+    if install_dir
+        .join("lib")
+        .join(format!("lib{}.a", hdf5_lib_name()))
+        .exists()
+        || install_dir
+            .join("lib")
+            .join(format!("{}.lib", hdf5_lib_name()))
+            .exists()
     {
         println!("HDF5 already built, skipping build");
         return install_dir;
@@ -413,10 +422,7 @@ fn build_cgns(vendor_dir: &Path, hdf5_install: &Path) -> PathBuf {
 
 /// Emit cargo link directives for both HDF5 and CGNS.
 fn emit_link_directives(hdf5_install: &Path, cgns_install: &Path) {
-    let lib_dirs = [
-        ("HDF5", hdf5_install),
-        ("CGNS", cgns_install),
-    ];
+    let lib_dirs = [("HDF5", hdf5_install), ("CGNS", cgns_install)];
 
     for (name, prefix) in &lib_dirs {
         let lib_dir = prefix.join("lib");
@@ -428,10 +434,7 @@ fn emit_link_directives(hdf5_install: &Path, cgns_install: &Path) {
         } else {
             let lib64 = prefix.join("lib64");
             if lib64.exists() {
-                println!(
-                    "cargo:rustc-link-search=native={}",
-                    lib64.to_string_lossy()
-                );
+                println!("cargo:rustc-link-search=native={}", lib64.to_string_lossy());
             } else {
                 panic!(
                     "{} library directory not found under {}",
@@ -551,10 +554,7 @@ fn main() {
     // (CGNS source changes or wrapper.h changes)
     let cgns_src = vendor_dir.join("cgns");
     if cgns_src.exists() {
-        println!(
-            "cargo:rerun-if-changed={}",
-            cgns_src.to_string_lossy()
-        );
+        println!("cargo:rerun-if-changed={}", cgns_src.to_string_lossy());
     }
     println!("cargo:rerun-if-changed=wrapper.h");
     println!("CGNS build complete");

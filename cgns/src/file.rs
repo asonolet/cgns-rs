@@ -27,7 +27,10 @@ impl CgnsFile {
 
     pub fn create_base(&self, name: &str, cell_dim: i32, phys_dim: i32) -> CgnsResult<Base> {
         let index = cgns_sys::base_write(self.fn_, name, cell_dim, phys_dim)?;
-        Ok(Base { file_fn: self.fn_, index })
+        Ok(Base {
+            file_fn: self.fn_,
+            index,
+        })
     }
 
     pub fn base(&self, name: &str) -> CgnsResult<Base> {
@@ -48,13 +51,19 @@ impl CgnsFile {
             };
             check_sys_status(status)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let found =
-                std::str::from_utf8(&buf[..end]).map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            let found = std::str::from_utf8(&buf[..end])
+                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
             if found == name {
-                return Ok(Base { file_fn: self.fn_, index: i });
+                return Ok(Base {
+                    file_fn: self.fn_,
+                    index: i,
+                });
             }
         }
-        Err(crate::error::CgnsError::NotFound(format!("base '{}' not found", name)))
+        Err(crate::error::CgnsError::NotFound(format!(
+            "base '{}' not found",
+            name
+        )))
     }
 
     pub fn base_count(&self) -> CgnsResult<i32> {
@@ -69,7 +78,10 @@ impl CgnsFile {
         let n = self.base_count()?;
         let mut bases = Vec::with_capacity(n as usize);
         for i in 1..=n {
-            bases.push(Base { file_fn: self.fn_, index: i });
+            bases.push(Base {
+                file_fn: self.fn_,
+                index: i,
+            });
         }
         Ok(bases)
     }

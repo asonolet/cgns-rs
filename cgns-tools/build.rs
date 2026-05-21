@@ -42,19 +42,20 @@ fn main() {
             .expect("DEP_CGNS_TOOLS_SRC_DIR not set — cgns-sys build may have failed"),
     );
     // Include directories for CGNS and HDF5 headers.
-    let include_dirs = env::var("DEP_CGNS_INCLUDE_DIR")
-        .expect("DEP_CGNS_INCLUDE_DIR not set");
+    let include_dirs = env::var("DEP_CGNS_INCLUDE_DIR").expect("DEP_CGNS_INCLUDE_DIR not set");
     let cgns_include: PathBuf = include_dirs.split(':').next().unwrap().into();
     let hdf5_include: PathBuf = include_dirs.split(':').nth(1).unwrap().into();
     // CGNS source dir (for internal headers like cgns_header.h)
-    let cgns_src_include: PathBuf =
-        tools_src_dir.parent().unwrap().into(); // vendor/cgns/src/
-    // CGNS build dir (for generated headers like cg_hash_types.h)
+    let cgns_src_include: PathBuf = tools_src_dir.parent().unwrap().into(); // vendor/cgns/src/
+                                                                            // CGNS build dir (for generated headers like cg_hash_types.h)
     let cgns_build_include: PathBuf = {
         let vendor = tools_src_dir
-            .parent().unwrap()   // src/
-            .parent().unwrap()   // cgns/
-            .parent().unwrap();  // vendor/
+            .parent()
+            .unwrap() // src/
+            .parent()
+            .unwrap() // cgns/
+            .parent()
+            .unwrap(); // vendor/
         vendor.join("cgns-build").join("src")
     };
 

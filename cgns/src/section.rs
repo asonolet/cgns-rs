@@ -35,7 +35,7 @@ pub struct Section {
 
 impl Section {
     /// The 1-based section index within its zone.
-    pub fn index(&self) -> i32 {
+    pub const fn index(&self) -> i32 {
         self.index
     }
 

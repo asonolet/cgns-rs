@@ -17,22 +17,25 @@ pub struct Zone {
 }
 
 impl Zone {
-    pub fn index(&self) -> i32 {
+    pub const fn index(&self) -> i32 {
         self.index
     }
 
     pub fn zone_type(&self) -> CgnsResult<ZoneType> {
         let _guard = cgns_sys::lock_cgns();
         let mut raw: u32 = 0;
-        let status = unsafe { cgns_sys::cg_zone_type(self.file_fn, self.base_index, self.index, &mut raw) };
+        let status =
+            unsafe { cgns_sys::cg_zone_type(self.file_fn, self.base_index, self.index, &mut raw) };
         check_sys_status(status)?;
-        ZoneType::from_raw(raw).ok_or_else(|| crate::error::CgnsError::Invalid("unknown zone type".into()))
+        ZoneType::from_raw(raw)
+            .ok_or_else(|| crate::error::CgnsError::Invalid("unknown zone type".into()))
     }
 
     pub fn coord_count(&self) -> CgnsResult<i32> {
         let _guard = cgns_sys::lock_cgns();
         let mut n: i32 = 0;
-        let status = unsafe { cgns_sys::cg_ncoords(self.file_fn, self.base_index, self.index, &mut n) };
+        let status =
+            unsafe { cgns_sys::cg_ncoords(self.file_fn, self.base_index, self.index, &mut n) };
         check_sys_status(status)?;
         Ok(n)
     }
@@ -89,7 +92,13 @@ impl Zone {
     /// equal `(i_max - i_min + 1) * (j_max - j_min + 1) * (k_max - k_min + 1)`.
     ///
     /// Data is returned in **Fortran (column-major) order**.
-    pub fn read_coord_f64(&self, name: &str, rmin: &[i64], rmax: &[i64], data: &mut [f64]) -> CgnsResult<()> {
+    pub fn read_coord_f64(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+        data: &mut [f64],
+    ) -> CgnsResult<()> {
         cgns_sys::coord_read(
             self.file_fn,
             self.base_index,
@@ -106,14 +115,30 @@ impl Zone {
     pub fn solution_count(&self) -> CgnsResult<i32> {
         let _guard = cgns_sys::lock_cgns();
         let mut n: i32 = 0;
-        let status = unsafe { cgns_sys::cg_nsols(self.file_fn, self.base_index, self.index, &mut n) };
+        let status =
+            unsafe { cgns_sys::cg_nsols(self.file_fn, self.base_index, self.index, &mut n) };
         check_sys_status(status)?;
         Ok(n)
     }
 
-    pub fn write_solution(&self, name: &str, location: crate::data::GridLocation) -> CgnsResult<Solution> {
-        let index = cgns_sys::sol_write(self.file_fn, self.base_index, self.index, name, location.to_raw())?;
-        Ok(Solution { file_fn: self.file_fn, base_index: self.base_index, zone_index: self.index, index })
+    pub fn write_solution(
+        &self,
+        name: &str,
+        location: crate::data::GridLocation,
+    ) -> CgnsResult<Solution> {
+        let index = cgns_sys::sol_write(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            location.to_raw(),
+        )?;
+        Ok(Solution {
+            file_fn: self.file_fn,
+            base_index: self.base_index,
+            zone_index: self.index,
+            index,
+        })
     }
 
     pub fn solution(&self, name: &str) -> CgnsResult<Solution> {
@@ -137,24 +162,41 @@ impl Zone {
             let found = std::str::from_utf8(&buf[..end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
             if found == name {
-                return Ok(Solution { file_fn: self.file_fn, base_index: self.base_index, zone_index: self.index, index: i });
+                return Ok(Solution {
+                    file_fn: self.file_fn,
+                    base_index: self.base_index,
+                    zone_index: self.index,
+                    index: i,
+                });
             }
         }
-        Err(crate::error::CgnsError::NotFound(format!("solution '{}' not found", name)))
+        Err(crate::error::CgnsError::NotFound(format!(
+            "solution '{}' not found",
+            name
+        )))
     }
 
     pub fn solutions(&self) -> CgnsResult<Vec<Solution>> {
         let n = self.solution_count()?;
         let mut sols = Vec::with_capacity(n as usize);
         for i in 1..=n {
-            sols.push(Solution { file_fn: self.file_fn, base_index: self.base_index, zone_index: self.index, index: i });
+            sols.push(Solution {
+                file_fn: self.file_fn,
+                base_index: self.base_index,
+                zone_index: self.index,
+                index: i,
+            });
         }
         Ok(sols)
     }
 
     /// Return the number of sections (element groups) in this zone.
     pub fn section_count(&self) -> CgnsResult<i32> {
-        from_sys_result(cgns_sys::nsections(self.file_fn, self.base_index, self.index))
+        from_sys_result(cgns_sys::nsections(
+            self.file_fn,
+            self.base_index,
+            self.index,
+        ))
     }
 
     /// Return all sections in this zone.
@@ -164,7 +206,12 @@ impl Zone {
         let n = self.section_count()?;
         let mut secs = Vec::with_capacity(n as usize);
         for i in 1..=n {
-            secs.push(Section { file_fn: self.file_fn, base_index: self.base_index, zone_index: self.index, index: i });
+            secs.push(Section {
+                file_fn: self.file_fn,
+                base_index: self.base_index,
+                zone_index: self.index,
+                index: i,
+            });
         }
         Ok(secs)
     }
@@ -201,10 +248,18 @@ impl Zone {
             let found = std::str::from_utf8(&buf[..end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
             if found == name {
-                return Ok(Section { file_fn: self.file_fn, base_index: self.base_index, zone_index: self.index, index: i });
+                return Ok(Section {
+                    file_fn: self.file_fn,
+                    base_index: self.base_index,
+                    zone_index: self.index,
+                    index: i,
+                });
             }
         }
-        Err(crate::error::CgnsError::NotFound(format!("section '{}' not found", name)))
+        Err(crate::error::CgnsError::NotFound(format!(
+            "section '{}' not found",
+            name
+        )))
     }
 
     /// Write an element section to this unstructured zone.
@@ -238,7 +293,12 @@ impl Zone {
             nbndry,
             elements,
         ))?;
-        Ok(Section { file_fn: self.file_fn, base_index: self.base_index, zone_index: self.index, index: idx })
+        Ok(Section {
+            file_fn: self.file_fn,
+            base_index: self.base_index,
+            zone_index: self.index,
+            index: idx,
+        })
     }
 }
 
@@ -256,7 +316,7 @@ pub struct Solution {
 }
 
 impl Solution {
-    pub fn index(&self) -> i32 {
+    pub const fn index(&self) -> i32 {
         self.index
     }
 
@@ -264,7 +324,13 @@ impl Solution {
         let _guard = cgns_sys::lock_cgns();
         let mut n: i32 = 0;
         let status = unsafe {
-            cgns_sys::cg_nfields(self.file_fn, self.base_index, self.zone_index, self.index, &mut n)
+            cgns_sys::cg_nfields(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                &mut n,
+            )
         };
         check_sys_status(status)?;
         Ok(n)

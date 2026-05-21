@@ -52,36 +52,71 @@ fn test_structured_3d_write_read() {
     }
 
     // Solution field: a simple scalar function f = x + y + z
-    let field_data: Vec<f64> = xs.iter().zip(ys.iter()).zip(zs.iter())
+    let field_data: Vec<f64> = xs
+        .iter()
+        .zip(ys.iter())
+        .zip(zs.iter())
         .map(|((&x, &y), &z)| x + y + z)
         .collect();
 
     // ---- WRITE ----
     {
         // open_write handles cg_set_file_type internally
-        let fn_ = cgns_sys::open_write(&path_str)
-            .expect("failed to open file for writing");
-        let base = cgns_sys::base_write(fn_, "TestBase", 3, 3)
-            .expect("failed to write base");
+        let fn_ = cgns_sys::open_write(&path_str).expect("failed to open file for writing");
+        let base = cgns_sys::base_write(fn_, "TestBase", 3, 3).expect("failed to write base");
         let zone = cgns_sys::zone_write_structured(fn_, base, "TestZone", &zone_size)
             .expect("failed to write zone");
-        cgns_sys::coord_write(fn_, base, zone, cgns_sys::DataType_t_RealDouble, "CoordinateX", &xs)
-            .expect("failed to write CoordinateX");
-        cgns_sys::coord_write(fn_, base, zone, cgns_sys::DataType_t_RealDouble, "CoordinateY", &ys)
-            .expect("failed to write CoordinateY");
-        cgns_sys::coord_write(fn_, base, zone, cgns_sys::DataType_t_RealDouble, "CoordinateZ", &zs)
-            .expect("failed to write CoordinateZ");
-        let sol = cgns_sys::sol_write(fn_, base, zone, "TestSolution", cgns_sys::GridLocation_t_Vertex)
-            .expect("failed to write solution");
-        cgns_sys::field_write(fn_, base, zone, sol, cgns_sys::DataType_t_RealDouble, "Density", &field_data)
-            .expect("failed to write Density");
+        cgns_sys::coord_write(
+            fn_,
+            base,
+            zone,
+            cgns_sys::DataType_t_RealDouble,
+            "CoordinateX",
+            &xs,
+        )
+        .expect("failed to write CoordinateX");
+        cgns_sys::coord_write(
+            fn_,
+            base,
+            zone,
+            cgns_sys::DataType_t_RealDouble,
+            "CoordinateY",
+            &ys,
+        )
+        .expect("failed to write CoordinateY");
+        cgns_sys::coord_write(
+            fn_,
+            base,
+            zone,
+            cgns_sys::DataType_t_RealDouble,
+            "CoordinateZ",
+            &zs,
+        )
+        .expect("failed to write CoordinateZ");
+        let sol = cgns_sys::sol_write(
+            fn_,
+            base,
+            zone,
+            "TestSolution",
+            cgns_sys::GridLocation_t_Vertex,
+        )
+        .expect("failed to write solution");
+        cgns_sys::field_write(
+            fn_,
+            base,
+            zone,
+            sol,
+            cgns_sys::DataType_t_RealDouble,
+            "Density",
+            &field_data,
+        )
+        .expect("failed to write Density");
         cgns_sys::close(fn_).expect("failed to close file");
     }
 
     // ---- READ ----
     {
-        let fn_ = cgns_sys::open_read(&path_str)
-            .expect("failed to open file for reading");
+        let fn_ = cgns_sys::open_read(&path_str).expect("failed to open file for reading");
 
         // Check number of bases
         let mut nbases: i32 = 0;
@@ -108,12 +143,39 @@ fn test_structured_3d_write_read() {
         let mut ys_read = vec![0.0f64; nvertices];
         let mut zs_read = vec![0.0f64; nvertices];
 
-        cgns_sys::coord_read(fn_, 1, 1, cgns_sys::DataType_t_RealDouble, "CoordinateX", &rmin, &rmax, &mut xs_read)
-            .expect("failed to read CoordinateX");
-        cgns_sys::coord_read(fn_, 1, 1, cgns_sys::DataType_t_RealDouble, "CoordinateY", &rmin, &rmax, &mut ys_read)
-            .expect("failed to read CoordinateY");
-        cgns_sys::coord_read(fn_, 1, 1, cgns_sys::DataType_t_RealDouble, "CoordinateZ", &rmin, &rmax, &mut zs_read)
-            .expect("failed to read CoordinateZ");
+        cgns_sys::coord_read(
+            fn_,
+            1,
+            1,
+            cgns_sys::DataType_t_RealDouble,
+            "CoordinateX",
+            &rmin,
+            &rmax,
+            &mut xs_read,
+        )
+        .expect("failed to read CoordinateX");
+        cgns_sys::coord_read(
+            fn_,
+            1,
+            1,
+            cgns_sys::DataType_t_RealDouble,
+            "CoordinateY",
+            &rmin,
+            &rmax,
+            &mut ys_read,
+        )
+        .expect("failed to read CoordinateY");
+        cgns_sys::coord_read(
+            fn_,
+            1,
+            1,
+            cgns_sys::DataType_t_RealDouble,
+            "CoordinateZ",
+            &rmin,
+            &rmax,
+            &mut zs_read,
+        )
+        .expect("failed to read CoordinateZ");
 
         assert_eq!(xs_read, xs, "CoordinateX mismatch");
         assert_eq!(ys_read, ys, "CoordinateY mismatch");
@@ -133,8 +195,18 @@ fn test_structured_3d_write_read() {
 
         // Read back field
         let mut field_read = vec![0.0f64; nvertices];
-        cgns_sys::field_read(fn_, 1, 1, 1, cgns_sys::DataType_t_RealDouble, "Density", &rmin, &rmax, &mut field_read)
-            .expect("failed to read Density");
+        cgns_sys::field_read(
+            fn_,
+            1,
+            1,
+            1,
+            cgns_sys::DataType_t_RealDouble,
+            "Density",
+            &rmin,
+            &rmax,
+            &mut field_read,
+        )
+        .expect("failed to read Density");
         assert_eq!(field_read, field_data, "Density field mismatch");
 
         cgns_sys::close(fn_).expect("failed to close file");

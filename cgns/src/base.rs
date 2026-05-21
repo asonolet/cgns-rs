@@ -7,7 +7,7 @@ pub struct Base {
 }
 
 impl Base {
-    pub fn index(&self) -> i32 {
+    pub const fn index(&self) -> i32 {
         self.index
     }
 
@@ -42,7 +42,11 @@ impl Base {
     /// Data is in **Fortran (column-major) order**: `i` varies fastest.
     pub fn create_zone_structured(&self, name: &str, size: &[i64]) -> CgnsResult<Zone> {
         let index = cgns_sys::zone_write_structured(self.file_fn, self.index, name, size)?;
-        Ok(Zone { file_fn: self.file_fn, base_index: self.index, index })
+        Ok(Zone {
+            file_fn: self.file_fn,
+            base_index: self.index,
+            index,
+        })
     }
 
     /// Create an unstructured zone.
@@ -52,10 +56,19 @@ impl Base {
     /// sections.  The CGNS zone-size array is `[num_vertices, num_elements, 0]`.
     ///
     /// Add element connectivity with [`Zone::write_section`] after creation.
-    pub fn create_zone_unstructured(&self, name: &str, num_vertices: i64, num_elements: i64) -> CgnsResult<Zone> {
+    pub fn create_zone_unstructured(
+        &self,
+        name: &str,
+        num_vertices: i64,
+        num_elements: i64,
+    ) -> CgnsResult<Zone> {
         let size = [num_vertices, num_elements, 0];
         let index = cgns_sys::zone_write_unstructured(self.file_fn, self.index, name, &size)?;
-        Ok(Zone { file_fn: self.file_fn, base_index: self.index, index })
+        Ok(Zone {
+            file_fn: self.file_fn,
+            base_index: self.index,
+            index,
+        })
     }
 
     pub fn zone_count(&self) -> CgnsResult<i32> {
@@ -70,7 +83,11 @@ impl Base {
         let n = self.zone_count()?;
         let mut zones = Vec::with_capacity(n as usize);
         for i in 1..=n {
-            zones.push(Zone { file_fn: self.file_fn, base_index: self.index, index: i });
+            zones.push(Zone {
+                file_fn: self.file_fn,
+                base_index: self.index,
+                index: i,
+            });
         }
         Ok(zones)
     }

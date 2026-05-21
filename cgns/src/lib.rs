@@ -83,16 +83,16 @@
 
 pub use cgns_sys;
 
-pub mod error;
 pub mod data;
+pub mod error;
 pub mod util;
 
-mod file;
 mod base;
-mod zone;
+mod file;
 mod section;
+mod zone;
 
-pub use file::CgnsFile;
 pub use base::Base;
+pub use file::CgnsFile;
 pub use section::Section;
-pub use zone::{Zone, Solution};
+pub use zone::{Solution, Zone};

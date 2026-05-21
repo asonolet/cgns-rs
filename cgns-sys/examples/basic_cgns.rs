@@ -48,7 +48,11 @@ fn main() {
     write_coords(fn_, base_id, zone_id, "CoordinateY", &ys);
 
     // Write a solution at vertices with a scalar field "Pressure"
-    let pressure: Vec<f64> = xs.iter().zip(&ys).map(|(&x, &y)| x * 0.5 + y * 0.3).collect();
+    let pressure: Vec<f64> = xs
+        .iter()
+        .zip(&ys)
+        .map(|(&x, &y)| x * 0.5 + y * 0.3)
+        .collect();
     let sol_id = write_solution(fn_, base_id, zone_id, "Solution");
     write_field(fn_, base_id, zone_id, sol_id, "Pressure", &pressure);
 
@@ -114,7 +118,9 @@ fn open_file(filename: &str, mode: u32) -> i32 {
     let c_name = CString::new(filename).unwrap();
     let mut fn_: i32 = 0;
     if mode == CG_MODE_WRITE {
-        unsafe { cg_set_file_type(CG_FILE_HDF5 as i32); }
+        unsafe {
+            cg_set_file_type(CG_FILE_HDF5 as i32);
+        }
     }
     let status = unsafe { cg_open(c_name.as_ptr(), mode as i32, &mut fn_) };
     assert_eq!(status, CG_OK as i32, "cg_open failed: {}", error_message());
@@ -130,7 +136,12 @@ fn write_base(fn_: i32, name: &str, cell_dim: i32, phys_dim: i32) -> i32 {
     let c_name = CString::new(name).unwrap();
     let mut base: i32 = 0;
     let status = unsafe { cg_base_write(fn_, c_name.as_ptr(), cell_dim, phys_dim, &mut base) };
-    assert_eq!(status, CG_OK as i32, "cg_base_write failed: {}", error_message());
+    assert_eq!(
+        status,
+        CG_OK as i32,
+        "cg_base_write failed: {}",
+        error_message()
+    );
     println!("  Base '{}' (id={})", name, base);
     base
 }
@@ -139,10 +150,27 @@ fn write_zone(fn_: i32, base: i32, name: &str, size: &[i64]) -> i32 {
     let c_name = CString::new(name).unwrap();
     let mut zone: i32 = 0;
     let status = unsafe {
-        cg_zone_write(fn_, base, c_name.as_ptr(), size.as_ptr(), ZoneType_t_Structured, &mut zone)
+        cg_zone_write(
+            fn_,
+            base,
+            c_name.as_ptr(),
+            size.as_ptr(),
+            ZoneType_t_Structured,
+            &mut zone,
+        )
     };
-    assert_eq!(status, CG_OK as i32, "cg_zone_write failed: {}", error_message());
-    println!("  Zone '{}' (id={}) dims={:?}", name, zone, &size[..size.len() / 3 * 2]);
+    assert_eq!(
+        status,
+        CG_OK as i32,
+        "cg_zone_write failed: {}",
+        error_message()
+    );
+    println!(
+        "  Zone '{}' (id={}) dims={:?}",
+        name,
+        zone,
+        &size[..size.len() / 3 * 2]
+    );
     zone
 }
 
@@ -160,15 +188,35 @@ fn write_coords(fn_: i32, base: i32, zone: i32, name: &str, data: &[f64]) {
             &mut idx,
         )
     };
-    assert_eq!(status, CG_OK as i32, "cg_coord_write({}) failed: {}", name, error_message());
+    assert_eq!(
+        status,
+        CG_OK as i32,
+        "cg_coord_write({}) failed: {}",
+        name,
+        error_message()
+    );
     println!("  Coordinates '{}' written ({} points)", name, data.len());
 }
 
 fn write_solution(fn_: i32, base: i32, zone: i32, name: &str) -> i32 {
     let c_name = CString::new(name).unwrap();
     let mut sol: i32 = 0;
-    let status = unsafe { cg_sol_write(fn_, base, zone, c_name.as_ptr(), GridLocation_t_Vertex, &mut sol) };
-    assert_eq!(status, CG_OK as i32, "cg_sol_write failed: {}", error_message());
+    let status = unsafe {
+        cg_sol_write(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            GridLocation_t_Vertex,
+            &mut sol,
+        )
+    };
+    assert_eq!(
+        status,
+        CG_OK as i32,
+        "cg_sol_write failed: {}",
+        error_message()
+    );
     println!("  Solution '{}' (id={})", name, sol);
     sol
 }
@@ -188,7 +236,13 @@ fn write_field(fn_: i32, base: i32, zone: i32, sol: i32, name: &str, data: &[f64
             &mut field,
         )
     };
-    assert_eq!(status, CG_OK as i32, "cg_field_write({}) failed: {}", name, error_message());
+    assert_eq!(
+        status,
+        CG_OK as i32,
+        "cg_field_write({}) failed: {}",
+        name,
+        error_message()
+    );
     println!("  Field '{}' written ({} values)", name, data.len());
 }
 
@@ -221,7 +275,15 @@ fn query_structure(fn_: i32) -> (i32, i32, i32, i32) {
     (nbases, nzones, ncoords, nsols)
 }
 
-fn read_coords(fn_: i32, base: i32, zone: i32, name: &str, rmin: &[i64], rmax: &[i64], data: &mut [f64]) {
+fn read_coords(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    rmin: &[i64],
+    rmax: &[i64],
+    data: &mut [f64],
+) {
     let c_name = CString::new(name).unwrap();
     let status = unsafe {
         cg_coord_read(
@@ -235,9 +297,16 @@ fn read_coords(fn_: i32, base: i32, zone: i32, name: &str, rmin: &[i64], rmax: &
             data.as_mut_ptr() as *mut std::ffi::c_void,
         )
     };
-    assert_eq!(status, CG_OK as i32, "cg_coord_read({}) failed: {}", name, error_message());
+    assert_eq!(
+        status,
+        CG_OK as i32,
+        "cg_coord_read({}) failed: {}",
+        name,
+        error_message()
+    );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn read_field(
     fn_: i32,
     base: i32,
@@ -262,5 +331,11 @@ fn read_field(
             data.as_mut_ptr() as *mut std::ffi::c_void,
         )
     };
-    assert_eq!(status, CG_OK as i32, "cg_field_read({}) failed: {}", name, error_message());
+    assert_eq!(
+        status,
+        CG_OK as i32,
+        "cg_field_read({}) failed: {}",
+        name,
+        error_message()
+    );
 }

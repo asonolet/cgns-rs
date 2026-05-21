@@ -40,18 +40,27 @@ fn test_structured_3d_write_read() {
             }
         }
     }
-    let field_data: Vec<f64> = xs.iter().zip(&ys).zip(&zs).map(|((&x, &y), &z)| x + y + z).collect();
+    let field_data: Vec<f64> = xs
+        .iter()
+        .zip(&ys)
+        .zip(&zs)
+        .map(|((&x, &y), &z)| x + y + z)
+        .collect();
 
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
         let base = file.create_base("TestBase", 3, 3).expect("create base");
-        let zone = base.create_zone_structured("TestZone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+        let zone = base
+            .create_zone_structured("TestZone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
             .expect("create zone");
         zone.write_coord_f64("CoordinateX", &xs).expect("write X");
         zone.write_coord_f64("CoordinateY", &ys).expect("write Y");
         zone.write_coord_f64("CoordinateZ", &zs).expect("write Z");
-        let sol = zone.write_solution("TestSolution", GridLocation::Vertex).expect("write solution");
-        sol.write_field_f64("Density", &field_data).expect("write field");
+        let sol = zone
+            .write_solution("TestSolution", GridLocation::Vertex)
+            .expect("write solution");
+        sol.write_field_f64("Density", &field_data)
+            .expect("write field");
     }
 
     {
@@ -64,17 +73,22 @@ fn test_structured_3d_write_read() {
         let zones = base.zones().expect("list zones");
         let zone = &zones[0];
         assert_eq!(zone.coord_count().expect("coord count"), 3);
-        assert_eq!(zone.coord_names().expect("coord names"),
-                   vec!["CoordinateX", "CoordinateY", "CoordinateZ"]);
+        assert_eq!(
+            zone.coord_names().expect("coord names"),
+            vec!["CoordinateX", "CoordinateY", "CoordinateZ"]
+        );
 
         let rmin = [1i64, 1, 1];
         let rmax = [ni, nj, nk];
         let mut xs_read = vec![0.0f64; nverts];
         let mut ys_read = vec![0.0f64; nverts];
         let mut zs_read = vec![0.0f64; nverts];
-        zone.read_coord_f64("CoordinateX", &rmin, &rmax, &mut xs_read).expect("read X");
-        zone.read_coord_f64("CoordinateY", &rmin, &rmax, &mut ys_read).expect("read Y");
-        zone.read_coord_f64("CoordinateZ", &rmin, &rmax, &mut zs_read).expect("read Z");
+        zone.read_coord_f64("CoordinateX", &rmin, &rmax, &mut xs_read)
+            .expect("read X");
+        zone.read_coord_f64("CoordinateY", &rmin, &rmax, &mut ys_read)
+            .expect("read Y");
+        zone.read_coord_f64("CoordinateZ", &rmin, &rmax, &mut zs_read)
+            .expect("read Z");
         assert_eq!(xs_read, xs);
         assert_eq!(ys_read, ys);
         assert_eq!(zs_read, zs);
@@ -82,7 +96,8 @@ fn test_structured_3d_write_read() {
         let sol = zone.solution("TestSolution").expect("find solution");
         assert_eq!(sol.field_count().expect("field count"), 1);
         let mut field_read = vec![0.0f64; nverts];
-        sol.read_field_f64("Density", &rmin, &rmax, &mut field_read).expect("read field");
+        sol.read_field_f64("Density", &rmin, &rmax, &mut field_read)
+            .expect("read field");
         assert_eq!(field_read, field_data);
     }
 
@@ -107,7 +122,8 @@ fn test_2d_grid() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 2, 2).expect("create base");
-        let zone = base.create_zone_structured("Zone", &[ni, nj, ni - 1, nj - 1])
+        let zone = base
+            .create_zone_structured("Zone", &[ni, nj, ni - 1, nj - 1])
             .expect("create zone");
         zone.write_coord_f64("X", &xs).expect("write X");
         zone.write_coord_f64("Y", &ys).expect("write Y");
@@ -120,8 +136,10 @@ fn test_2d_grid() {
 
         let mut xs_read = vec![0.0; npts];
         let mut ys_read = vec![0.0; npts];
-        zone.read_coord_f64("X", &[1, 1], &[ni, nj], &mut xs_read).expect("read X");
-        zone.read_coord_f64("Y", &[1, 1], &[ni, nj], &mut ys_read).expect("read Y");
+        zone.read_coord_f64("X", &[1, 1], &[ni, nj], &mut xs_read)
+            .expect("read X");
+        zone.read_coord_f64("Y", &[1, 1], &[ni, nj], &mut ys_read)
+            .expect("read Y");
         assert_eq!(xs_read, xs);
         assert_eq!(ys_read, ys);
     }
@@ -168,8 +186,10 @@ fn test_multiple_zones() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 2, 2).expect("create base");
-        base.create_zone_structured("Zone1", &[3, 4, 2, 3]).expect("zone 1");
-        base.create_zone_structured("Zone2", &[5, 6, 4, 5]).expect("zone 2");
+        base.create_zone_structured("Zone1", &[3, 4, 2, 3])
+            .expect("zone 1");
+        base.create_zone_structured("Zone2", &[5, 6, 4, 5])
+            .expect("zone 2");
     }
 
     {
@@ -198,19 +218,32 @@ fn test_multiple_solutions_and_fields() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 2, 2).expect("create base");
-        let zone = base.create_zone_structured("Zone", &[3, 4, 2, 3]).expect("create zone");
+        let zone = base
+            .create_zone_structured("Zone", &[3, 4, 2, 3])
+            .expect("create zone");
 
-        let sol1 = zone.write_solution("Sol1", GridLocation::Vertex).expect("sol 1");
+        let sol1 = zone
+            .write_solution("Sol1", GridLocation::Vertex)
+            .expect("sol 1");
         sol1.write_field_f64("FieldA", &data).expect("field A");
         sol1.write_field_f64("FieldB", &data2).expect("field B");
 
-        let sol2 = zone.write_solution("Sol2", GridLocation::CellCenter).expect("sol 2");
+        let sol2 = zone
+            .write_solution("Sol2", GridLocation::CellCenter)
+            .expect("sol 2");
         sol2.write_field_f64("FieldC", &data).expect("field C");
     }
 
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         assert_eq!(zone.solution_count().expect("sol count"), 2);
 
         let sol1 = zone.solution("Sol1").expect("find Sol1");
@@ -240,7 +273,8 @@ fn test_partial_read() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 3, 3).expect("create base");
-        let zone = base.create_zone_structured("Zone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+        let zone = base
+            .create_zone_structured("Zone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
             .expect("create zone");
         zone.write_coord_f64("X", &xs).expect("write X");
     }
@@ -248,9 +282,17 @@ fn test_partial_read() {
     // Read a 2x2x2 corner sub-range
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         let mut corner = vec![0.0f64; 8];
-        zone.read_coord_f64("X", &[1, 1, 1], &[2, 2, 2], &mut corner).expect("read corner");
+        zone.read_coord_f64("X", &[1, 1, 1], &[2, 2, 2], &mut corner)
+            .expect("read corner");
         // Expected: indices (1,1,1)=0, (2,1,1)=1, (1,2,1)=10, (2,2,1)=11,
         //           (1,1,2)=100, (2,1,2)=101, (1,2,2)=110, (2,2,2)=111
         assert_eq!(corner[0], 0.0);
@@ -353,14 +395,22 @@ fn test_minimal_zone() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 3, 3).expect("create base");
-        let zone = base.create_zone_structured("Tiny", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+        let zone = base
+            .create_zone_structured("Tiny", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
             .expect("create zone");
         zone.write_coord_f64("X", &data).expect("write X");
     }
 
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         assert_eq!(zone.coord_count().expect("coord count"), 1);
     }
 
@@ -378,16 +428,27 @@ fn test_grid_location_roundtrip() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 2, 2).expect("create base");
-        let zone = base.create_zone_structured("Zone", &[3, 4, 2, 3]).expect("create zone");
-        zone.write_solution("VertexSol", GridLocation::Vertex).expect("vertex");
-        zone.write_solution("CellSol", GridLocation::CellCenter).expect("cell");
+        let zone = base
+            .create_zone_structured("Zone", &[3, 4, 2, 3])
+            .expect("create zone");
+        zone.write_solution("VertexSol", GridLocation::Vertex)
+            .expect("vertex");
+        zone.write_solution("CellSol", GridLocation::CellCenter)
+            .expect("cell");
     }
 
     // We can't read back the location with the current API,
     // but we can verify the solutions exist
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         assert_eq!(zone.solution_count().expect("count"), 2);
         zone.solution("VertexSol").expect("find VertexSol");
         zone.solution("CellSol").expect("find CellSol");
@@ -410,13 +471,23 @@ fn test_unstructured_tri3() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 3, 3).expect("create base");
-        let zone = base.create_zone_unstructured("Zone", 4, 3).expect("create zone");
-        zone.write_section("TriSection", ElementType::Tri3, 1, 3, 0, &conn).expect("write section");
+        let zone = base
+            .create_zone_unstructured("Zone", 4, 3)
+            .expect("create zone");
+        zone.write_section("TriSection", ElementType::Tri3, 1, 3, 0, &conn)
+            .expect("write section");
     }
 
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         assert_eq!(zone.section_count().expect("section count"), 1);
 
         let sec = zone.section("TriSection").expect("find section");
@@ -453,13 +524,23 @@ fn test_unstructured_tetra4() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 3, 3).expect("create base");
-        let zone = base.create_zone_unstructured("Zone", 5, 2).expect("create zone");
-        zone.write_section("TetSection", ElementType::Tetra4, 1, 2, 0, &conn).expect("write section");
+        let zone = base
+            .create_zone_unstructured("Zone", 5, 2)
+            .expect("create zone");
+        zone.write_section("TetSection", ElementType::Tetra4, 1, 2, 0, &conn)
+            .expect("write section");
     }
 
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         assert_eq!(zone.section_count().expect("section count"), 1);
 
         let sec = zone.section("TetSection").expect("find section");
@@ -492,13 +573,23 @@ fn test_unstructured_hexa8() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 3, 3).expect("create base");
-        let zone = base.create_zone_unstructured("Zone", 8, 1).expect("create zone");
-        zone.write_section("HexSection", ElementType::Hexa8, 1, 1, 0, &conn).expect("write section");
+        let zone = base
+            .create_zone_unstructured("Zone", 8, 1)
+            .expect("create zone");
+        zone.write_section("HexSection", ElementType::Hexa8, 1, 1, 0, &conn)
+            .expect("write section");
     }
 
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         let sec = zone.section("HexSection").expect("find section");
         let read_conn = sec.read_connectivity().expect("read connectivity");
         assert_eq!(read_conn, conn);
@@ -524,14 +615,25 @@ fn test_unstructured_multiple_sections() {
     {
         let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
         let base = file.create_base("Base", 3, 3).expect("create base");
-        let zone = base.create_zone_unstructured("Zone", 4, 2).expect("create zone");
-        zone.write_section("Tris", ElementType::Tri3, 1, 1, 0, &tri_conn).expect("write tris");
-        zone.write_section("Tets", ElementType::Tetra4, 2, 2, 0, &tet_conn).expect("write tets");
+        let zone = base
+            .create_zone_unstructured("Zone", 4, 2)
+            .expect("create zone");
+        zone.write_section("Tris", ElementType::Tri3, 1, 1, 0, &tri_conn)
+            .expect("write tris");
+        zone.write_section("Tets", ElementType::Tetra4, 2, 2, 0, &tet_conn)
+            .expect("write tets");
     }
 
     {
         let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
-        let zone = file.base("Base").expect("base").zones().expect("zones").into_iter().next().unwrap();
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
         let secs = zone.sections().expect("sections");
         assert_eq!(secs.len(), 2);
 
