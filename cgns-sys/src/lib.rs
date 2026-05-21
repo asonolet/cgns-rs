@@ -286,6 +286,197 @@ pub fn open_modify(filename: &str) -> Result<i32, String> {
     status_to_result(status).map(|_| fn_)
 }
 
+/// Return the number of boundary conditions on a zone.
+pub fn nbocos(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nbocos(fn_, base, zone, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Write a boundary condition.
+#[allow(clippy::too_many_arguments)]
+pub fn boco_write(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    bocotype: u32,
+    ptset_type: u32,
+    npnts: i64,
+    pnts: &[i64],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid BC name: {}", e))?;
+    let mut bc: i32 = 0;
+    let status = unsafe {
+        cg_boco_write(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            bocotype,
+            ptset_type,
+            npnts,
+            pnts.as_ptr(),
+            &mut bc,
+        )
+    };
+    status_to_result(status).map(|_| bc)
+}
+
+/// Read boundary condition metadata.
+#[allow(clippy::too_many_arguments)]
+pub fn boco_info(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    bc: i32,
+    name: &mut [u8],
+    bocotype: &mut u32,
+    ptset_type: &mut u32,
+    npnts: &mut i64,
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let mut normal_index: i32 = 0;
+    let mut normal_list_size: i64 = 0;
+    let mut normal_data_type: u32 = 0;
+    let mut ndataset: i32 = 0;
+    let status = unsafe {
+        cg_boco_info(
+            fn_,
+            base,
+            zone,
+            bc,
+            name.as_mut_ptr() as *mut i8,
+            bocotype as *mut u32,
+            ptset_type as *mut u32,
+            npnts as *mut i64,
+            &mut normal_index,
+            &mut normal_list_size,
+            &mut normal_data_type,
+            &mut ndataset,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Read boundary condition point data.
+///
+/// `pnts` must be pre-allocated to the correct size (retrieved via [`boco_info`]).
+pub fn boco_read(fn_: i32, base: i32, zone: i32, bc: i32, pnts: &mut [i64]) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status =
+        unsafe { cg_boco_read(fn_, base, zone, bc, pnts.as_mut_ptr(), std::ptr::null_mut()) };
+    status_to_result(status)
+}
+
+/// Return the number of 1-to-1 zone interfaces on a zone.
+pub fn n1to1(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_n1to1(fn_, base, zone, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Write a 1-to-1 zone interface.
+#[allow(clippy::too_many_arguments)]
+pub fn write_1to1(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    donor_name: &str,
+    range: &[i64],
+    donor_range: &[i64],
+    transform: &[i32],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid name: {}", e))?;
+    let c_donor =
+        std::ffi::CString::new(donor_name).map_err(|e| format!("invalid donor name: {}", e))?;
+    let mut idx: i32 = 0;
+    let status = unsafe {
+        cg_1to1_write(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            c_donor.as_ptr(),
+            range.as_ptr(),
+            donor_range.as_ptr(),
+            transform.as_ptr(),
+            &mut idx,
+        )
+    };
+    status_to_result(status).map(|_| idx)
+}
+
+/// Read a 1-to-1 zone interface.
+#[allow(clippy::too_many_arguments)]
+pub fn read_1to1(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    conn: i32,
+    name: &mut [u8],
+    donor_name: &mut [u8],
+    range: &mut [i64],
+    donor_range: &mut [i64],
+    transform: &mut [i32],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_1to1_read(
+            fn_,
+            base,
+            zone,
+            conn,
+            name.as_mut_ptr() as *mut i8,
+            donor_name.as_mut_ptr() as *mut i8,
+            range.as_mut_ptr(),
+            donor_range.as_mut_ptr(),
+            transform.as_mut_ptr(),
+        )
+    };
+    status_to_result(status)
+}
+
+/// Return the number of families in a base.
+pub fn nfamilies(fn_: i32, base: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nfamilies(fn_, base, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Write a family.
+pub fn family_write(fn_: i32, base: i32, name: &str) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid family name: {}", e))?;
+    let mut id: i32 = 0;
+    let status = unsafe { cg_family_write(fn_, base, c_name.as_ptr(), &mut id) };
+    status_to_result(status).map(|_| id)
+}
+
+/// Read a family name.
+pub fn family_read(fn_: i32, base: i32, family: i32, name: &mut [u8]) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let mut nboco: i32 = 0;
+    let mut ngeos: i32 = 0;
+    let status = unsafe {
+        cg_family_read(
+            fn_,
+            base,
+            family,
+            name.as_mut_ptr() as *mut i8,
+            &mut nboco,
+            &mut ngeos,
+        )
+    };
+    status_to_result(status)
+}
+
 /// Close a CGNS file.
 pub fn close(fn_: i32) -> Result<(), String> {
     let _guard = lock_cgns();

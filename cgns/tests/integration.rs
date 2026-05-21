@@ -1,4 +1,4 @@
-use cgns::data::{ElementType, GridLocation};
+use cgns::data::{BcType, ElementType, GridLocation, PointSetType};
 use cgns::CgnsFile;
 use std::path::PathBuf;
 
@@ -679,6 +679,135 @@ fn test_unstructured_multiple_sections() {
 
         let tet = zone.section("Tets").expect("find Tets");
         assert_eq!(tet.read_connectivity().expect("conn"), tet_conn);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Boundary conditions — write structured zone with BCs, verify via count
+// ---------------------------------------------------------------------------
+#[test]
+fn test_boundary_conditions() {
+    let path = test_path("boundary_conditions");
+    let _ = std::fs::remove_file(&path);
+
+    let ni: i64 = 4;
+    let nj: i64 = 3;
+    let nk: i64 = 5;
+
+    let xs = vec![0.0f64; (ni * nj * nk) as usize];
+    let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+    let base = file.create_base("Base", 3, 3).expect("create base");
+    let zone = base
+        .create_zone_structured("Zone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+        .expect("create zone");
+    zone.write_coord_f64("X", &xs).expect("write X");
+
+    let imax_vertex = (nk - 1) * nj * ni + (nj - 1) * ni + 1;
+    let imin_face: Vec<i64> = vec![1, imax_vertex];
+    zone.write_bc(
+        "Wall_imin",
+        BcType::Wall,
+        PointSetType::PointRange,
+        2,
+        &imin_face,
+    )
+    .expect("write BC");
+    drop(file);
+
+    let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+    let zone = file
+        .base("Base")
+        .expect("base")
+        .zones()
+        .expect("zones")
+        .into_iter()
+        .next()
+        .unwrap();
+    assert_eq!(zone.bc_count().expect("bc count"), 1);
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Families — write and read back count
+// ---------------------------------------------------------------------------
+#[test]
+fn test_families() {
+    let path = test_path("families");
+    let _ = std::fs::remove_file(&path);
+
+    let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+    let base = file.create_base("Base", 3, 3).expect("create base");
+    let _f1 = base.write_family("Wing").expect("write family");
+    let _f2 = base.write_family("Fuselage").expect("write family");
+    let _f3 = base.write_family("Tail").expect("write family");
+    drop(file);
+
+    let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+    let base = file.base("Base").expect("find base");
+    assert_eq!(base.family_count().expect("family count"), 3);
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// 1-to-1 zone interface — write two zones and read back count
+// ---------------------------------------------------------------------------
+#[test]
+fn test_1to1_connectivity() {
+    let path = test_path("1to1_connectivity");
+    let _ = std::fs::remove_file(&path);
+
+    let verts = vec![0.0f64; 16];
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+
+        let zone_a = base
+            .create_zone_structured("ZoneA", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("create zone A");
+        zone_a.write_coord_f64("X", &verts).expect("write X");
+
+        let zone_b = base
+            .create_zone_structured("ZoneB", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("create zone B");
+        zone_b.write_coord_f64("X", &verts).expect("write X");
+
+        let range = [2i64, 1, 1, 2, 2, 2];
+        let donor_range = [1i64, 1, 1, 1, 2, 2];
+        let transform = [1i32, 2, 3];
+        zone_a
+            .write_1to1("AB_interface", "ZoneB", &range, &donor_range, &transform)
+            .expect("write 1to1");
+    }
+
+    let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+    let base = file.base("Base").expect("find base");
+    let zones = base.zones().expect("zones");
+    let zone_a = &zones[0];
+    assert_eq!(zone_a.n1to1().expect("n1to1"), 1);
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Various data types — write coordinates as f32, i32, i64
+// ---------------------------------------------------------------------------
+#[test]
+fn test_write_coord_f32() {
+    let path = test_path("write_coord_f32");
+    let _ = std::fs::remove_file(&path);
+
+    let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base
+            .create_zone_structured("Zone", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("create zone");
+        zone.write_coord_f32("X", &data).expect("write X f32");
     }
 
     std::fs::remove_file(&path).ok();

@@ -1,4 +1,4 @@
-use crate::error::{check_sys_status, CgnsResult};
+use crate::error::{check_sys_status, from_sys_result, CgnsResult};
 use crate::zone::Zone;
 
 pub struct Base {
@@ -90,5 +90,33 @@ impl Base {
             });
         }
         Ok(zones)
+    }
+
+    /// Return the number of families in this base.
+    pub fn family_count(&self) -> CgnsResult<i32> {
+        from_sys_result(cgns_sys::nfamilies(self.file_fn, self.index))
+    }
+
+    /// Write a family.
+    pub fn write_family(&self, name: &str) -> CgnsResult<i32> {
+        from_sys_result(cgns_sys::family_write(self.file_fn, self.index, name))
+    }
+
+    /// Return all family names in this base.
+    pub fn family_names(&self) -> CgnsResult<Vec<String>> {
+        let n = self.family_count()?;
+        let mut names = Vec::with_capacity(n as usize);
+        let _guard = cgns_sys::lock_cgns();
+        for i in 1..=n {
+            let mut buf = vec![0u8; 64];
+            cgns_sys::family_read(self.file_fn, self.index, i, &mut buf)?;
+            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+            names.push(
+                std::str::from_utf8(&buf[..end])
+                    .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?
+                    .to_string(),
+            );
+        }
+        Ok(names)
     }
 }

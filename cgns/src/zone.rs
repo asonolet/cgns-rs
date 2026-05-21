@@ -1,4 +1,6 @@
-use crate::data::{ElementType, ZoneType};
+use crate::bc::Bc;
+use crate::connectivity::OneToOne;
+use crate::data::{BcType, ElementType, PointSetType, ZoneType};
 use crate::error::{check_sys_status, from_sys_result, CgnsResult};
 use crate::section::Section;
 
@@ -299,6 +301,209 @@ impl Zone {
             zone_index: self.index,
             index: idx,
         })
+    }
+
+    /// Return the number of boundary conditions on this zone.
+    pub fn bc_count(&self) -> CgnsResult<i32> {
+        from_sys_result(cgns_sys::nbocos(self.file_fn, self.base_index, self.index))
+    }
+
+    /// Write a boundary condition.
+    ///
+    /// `npnts` is the number of point-set entries:
+    /// - For `PointRange`: number of ranges (typically `1`)
+    /// - For `PointList`: number of points
+    ///
+    /// `points` are the flat point/range indices (1-based).
+    pub fn write_bc(
+        &self,
+        name: &str,
+        bc_type: BcType,
+        point_set: PointSetType,
+        npnts: i64,
+        points: &[i64],
+    ) -> CgnsResult<Bc> {
+        let idx = from_sys_result(cgns_sys::boco_write(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            bc_type.to_raw(),
+            point_set.to_raw(),
+            npnts,
+            points,
+        ))?;
+        Ok(Bc {
+            file_fn: self.file_fn,
+            base_index: self.base_index,
+            zone_index: self.index,
+            index: idx,
+        })
+    }
+
+    /// Return all boundary conditions on this zone.
+    pub fn bcs(&self) -> CgnsResult<Vec<Bc>> {
+        let n = self.bc_count()?;
+        let mut bcs = Vec::with_capacity(n as usize);
+        for i in 1..=n {
+            bcs.push(Bc {
+                file_fn: self.file_fn,
+                base_index: self.base_index,
+                zone_index: self.index,
+                index: i,
+            });
+        }
+        Ok(bcs)
+    }
+
+    /// Find a boundary condition by name.
+    pub fn bc(&self, name: &str) -> CgnsResult<Bc> {
+        let all = self.bcs()?;
+        for bc in &all {
+            let info = bc.info()?;
+            if info.name == name {
+                return Ok(Bc {
+                    file_fn: self.file_fn,
+                    base_index: self.base_index,
+                    zone_index: self.index,
+                    index: bc.index,
+                });
+            }
+        }
+        Err(crate::error::CgnsError::NotFound(format!(
+            "BC '{}' not found",
+            name
+        )))
+    }
+
+    /// Return the number of 1-to-1 zone interfaces.
+    pub fn n1to1(&self) -> CgnsResult<i32> {
+        from_sys_result(cgns_sys::n1to1(self.file_fn, self.base_index, self.index))
+    }
+
+    /// Write a 1-to-1 zone interface.
+    pub fn write_1to1(
+        &self,
+        name: &str,
+        donor_name: &str,
+        range: &[i64],
+        donor_range: &[i64],
+        transform: &[i32],
+    ) -> CgnsResult<OneToOne> {
+        let idx = from_sys_result(cgns_sys::write_1to1(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            donor_name,
+            range,
+            donor_range,
+            transform,
+        ))?;
+        Ok(OneToOne {
+            file_fn: self.file_fn,
+            base_index: self.base_index,
+            zone_index: self.index,
+            index: idx,
+        })
+    }
+
+    /// Return all 1-to-1 zone interfaces.
+    pub fn one_to_ones(&self) -> CgnsResult<Vec<OneToOne>> {
+        let n = self.n1to1()?;
+        let mut conns = Vec::with_capacity(n as usize);
+        for i in 1..=n {
+            conns.push(OneToOne {
+                file_fn: self.file_fn,
+                base_index: self.base_index,
+                zone_index: self.index,
+                index: i,
+            });
+        }
+        Ok(conns)
+    }
+
+    /// Write grid coordinates with arbitrary data type.
+    pub fn write_coord_f32(&self, name: &str, data: &[f32]) -> CgnsResult<()> {
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let mut coord_idx: i32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_coord_write(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                cgns_sys::DataType_t_RealSingle,
+                c_name.as_ptr(),
+                data.as_ptr() as *const std::ffi::c_void,
+                &mut coord_idx,
+            )
+        };
+        check_sys_status(status)
+    }
+
+    /// Write a flow solution field (32-bit float).
+    pub fn write_field_f32(&self, sol: &Solution, name: &str, data: &[f32]) -> CgnsResult<()> {
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let mut field: i32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_field_write(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                sol.index,
+                cgns_sys::DataType_t_RealSingle,
+                c_name.as_ptr(),
+                data.as_ptr() as *const std::ffi::c_void,
+                &mut field,
+            )
+        };
+        check_sys_status(status)
+    }
+
+    /// Write a flow solution field (32-bit integer).
+    pub fn write_field_i32(&self, sol: &Solution, name: &str, data: &[i32]) -> CgnsResult<()> {
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let mut field: i32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_field_write(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                sol.index,
+                cgns_sys::DataType_t_Integer,
+                c_name.as_ptr(),
+                data.as_ptr() as *const std::ffi::c_void,
+                &mut field,
+            )
+        };
+        check_sys_status(status)
+    }
+
+    /// Write a flow solution field (64-bit integer).
+    pub fn write_field_i64(&self, sol: &Solution, name: &str, data: &[i64]) -> CgnsResult<()> {
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let mut field: i32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_field_write(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                sol.index,
+                cgns_sys::DataType_t_LongInteger,
+                c_name.as_ptr(),
+                data.as_ptr() as *const std::ffi::c_void,
+                &mut field,
+            )
+        };
+        check_sys_status(status)
     }
 }
 

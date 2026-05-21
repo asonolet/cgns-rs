@@ -233,3 +233,128 @@ impl ElementType {
         }
     }
 }
+
+/// CGNS boundary condition type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BcType {
+    Null,
+    UserDefined,
+    AxisymmetricWedge,
+    DegenerateLine,
+    DegeneratePoint,
+    Dirichlet,
+    Extrapolate,
+    Farfield,
+    General,
+    Inflow,
+    InflowSubsonic,
+    InflowSupersonic,
+    Neumann,
+    Outflow,
+    OutflowSubsonic,
+    OutflowSupersonic,
+    SymmetryPlane,
+    SymmetryPolar,
+    TunnelInflow,
+    TunnelOutflow,
+    Wall,
+    WallInviscid,
+    WallViscous,
+    WallViscousHeatFlux,
+    WallViscousIsothermal,
+}
+
+impl BcType {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::BCType_t_BCTypeNull,
+            Self::UserDefined => cgns_sys::BCType_t_BCTypeUserDefined,
+            Self::AxisymmetricWedge => cgns_sys::BCType_t_BCAxisymmetricWedge,
+            Self::DegenerateLine => cgns_sys::BCType_t_BCDegenerateLine,
+            Self::DegeneratePoint => cgns_sys::BCType_t_BCDegeneratePoint,
+            Self::Dirichlet => cgns_sys::BCType_t_BCDirichlet,
+            Self::Extrapolate => cgns_sys::BCType_t_BCExtrapolate,
+            Self::Farfield => cgns_sys::BCType_t_BCFarfield,
+            Self::General => cgns_sys::BCType_t_BCGeneral,
+            Self::Inflow => cgns_sys::BCType_t_BCInflow,
+            Self::InflowSubsonic => cgns_sys::BCType_t_BCInflowSubsonic,
+            Self::InflowSupersonic => cgns_sys::BCType_t_BCInflowSupersonic,
+            Self::Neumann => cgns_sys::BCType_t_BCNeumann,
+            Self::Outflow => cgns_sys::BCType_t_BCOutflow,
+            Self::OutflowSubsonic => cgns_sys::BCType_t_BCOutflowSubsonic,
+            Self::OutflowSupersonic => cgns_sys::BCType_t_BCOutflowSupersonic,
+            Self::SymmetryPlane => cgns_sys::BCType_t_BCSymmetryPlane,
+            Self::SymmetryPolar => cgns_sys::BCType_t_BCSymmetryPolar,
+            Self::TunnelInflow => cgns_sys::BCType_t_BCTunnelInflow,
+            Self::TunnelOutflow => cgns_sys::BCType_t_BCTunnelOutflow,
+            Self::Wall => cgns_sys::BCType_t_BCWall,
+            Self::WallInviscid => cgns_sys::BCType_t_BCWallInviscid,
+            Self::WallViscous => cgns_sys::BCType_t_BCWallViscous,
+            Self::WallViscousHeatFlux => cgns_sys::BCType_t_BCWallViscousHeatFlux,
+            Self::WallViscousIsothermal => cgns_sys::BCType_t_BCWallViscousIsothermal,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::BCType_t_BCTypeNull => Some(Self::Null),
+            x if x == cgns_sys::BCType_t_BCTypeUserDefined => Some(Self::UserDefined),
+            x if x == cgns_sys::BCType_t_BCAxisymmetricWedge => Some(Self::AxisymmetricWedge),
+            x if x == cgns_sys::BCType_t_BCDegenerateLine => Some(Self::DegenerateLine),
+            x if x == cgns_sys::BCType_t_BCDegeneratePoint => Some(Self::DegeneratePoint),
+            x if x == cgns_sys::BCType_t_BCDirichlet => Some(Self::Dirichlet),
+            x if x == cgns_sys::BCType_t_BCExtrapolate => Some(Self::Extrapolate),
+            x if x == cgns_sys::BCType_t_BCFarfield => Some(Self::Farfield),
+            x if x == cgns_sys::BCType_t_BCGeneral => Some(Self::General),
+            x if x == cgns_sys::BCType_t_BCInflow => Some(Self::Inflow),
+            x if x == cgns_sys::BCType_t_BCInflowSubsonic => Some(Self::InflowSubsonic),
+            x if x == cgns_sys::BCType_t_BCInflowSupersonic => Some(Self::InflowSupersonic),
+            x if x == cgns_sys::BCType_t_BCNeumann => Some(Self::Neumann),
+            x if x == cgns_sys::BCType_t_BCOutflow => Some(Self::Outflow),
+            x if x == cgns_sys::BCType_t_BCOutflowSubsonic => Some(Self::OutflowSubsonic),
+            x if x == cgns_sys::BCType_t_BCOutflowSupersonic => Some(Self::OutflowSupersonic),
+            x if x == cgns_sys::BCType_t_BCSymmetryPlane => Some(Self::SymmetryPlane),
+            x if x == cgns_sys::BCType_t_BCSymmetryPolar => Some(Self::SymmetryPolar),
+            x if x == cgns_sys::BCType_t_BCTunnelInflow => Some(Self::TunnelInflow),
+            x if x == cgns_sys::BCType_t_BCTunnelOutflow => Some(Self::TunnelOutflow),
+            x if x == cgns_sys::BCType_t_BCWall => Some(Self::Wall),
+            x if x == cgns_sys::BCType_t_BCWallInviscid => Some(Self::WallInviscid),
+            x if x == cgns_sys::BCType_t_BCWallViscous => Some(Self::WallViscous),
+            x if x == cgns_sys::BCType_t_BCWallViscousHeatFlux => Some(Self::WallViscousHeatFlux),
+            x if x == cgns_sys::BCType_t_BCWallViscousIsothermal => {
+                Some(Self::WallViscousIsothermal)
+            }
+            _ => None,
+        }
+    }
+}
+
+/// How a point set is specified for a boundary condition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PointSetType {
+    PointList,
+    PointRange,
+    ElementRange,
+    ElementList,
+}
+
+impl PointSetType {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::PointList => cgns_sys::PointSetType_t_PointList,
+            Self::PointRange => cgns_sys::PointSetType_t_PointRange,
+            Self::ElementRange => cgns_sys::PointSetType_t_ElementRange,
+            Self::ElementList => cgns_sys::PointSetType_t_ElementList,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::PointSetType_t_PointList => Some(Self::PointList),
+            x if x == cgns_sys::PointSetType_t_PointRange => Some(Self::PointRange),
+            x if x == cgns_sys::PointSetType_t_ElementRange => Some(Self::ElementRange),
+            x if x == cgns_sys::PointSetType_t_ElementList => Some(Self::ElementList),
+            _ => None,
+        }
+    }
+}

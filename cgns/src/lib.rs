@@ -88,11 +88,15 @@ pub mod error;
 pub mod util;
 
 mod base;
+mod bc;
+mod connectivity;
 mod file;
 mod section;
 mod zone;
 
 pub use base::Base;
+pub use bc::Bc;
+pub use connectivity::OneToOne;
 pub use file::CgnsFile;
 pub use section::Section;
 pub use zone::{Solution, Zone};
