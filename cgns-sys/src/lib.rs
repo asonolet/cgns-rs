@@ -273,6 +273,19 @@ pub fn open_read(filename: &str) -> Result<i32, String> {
     status_to_result(status).map(|_| fn_)
 }
 
+/// Open a CGNS file for modification (append).
+///
+/// Opens an existing file and allows appending new data without
+/// overwriting existing content.
+pub fn open_modify(filename: &str) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_filename =
+        std::ffi::CString::new(filename).map_err(|e| format!("invalid filename: {}", e))?;
+    let mut fn_: i32 = 0;
+    let status = unsafe { cg_open(c_filename.as_ptr(), CG_MODE_MODIFY as i32, &mut fn_) };
+    status_to_result(status).map(|_| fn_)
+}
+
 /// Close a CGNS file.
 pub fn close(fn_: i32) -> Result<(), String> {
     let _guard = lock_cgns();

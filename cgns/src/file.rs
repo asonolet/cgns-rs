@@ -17,6 +17,11 @@ impl CgnsFile {
         Ok(Self { fn_, closed: false })
     }
 
+    pub fn modify(path: &str) -> CgnsResult<Self> {
+        let fn_ = cgns_sys::open_modify(path)?;
+        Ok(Self { fn_, closed: false })
+    }
+
     pub fn close(&mut self) -> CgnsResult<()> {
         if !self.closed {
             cgns_sys::close(self.fn_)?;

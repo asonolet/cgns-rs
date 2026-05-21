@@ -176,6 +176,43 @@ fn test_multiple_bases() {
 }
 
 // ---------------------------------------------------------------------------
+// Open in modify mode (append data to existing file)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_modify_mode() {
+    let path = test_path("modify_mode");
+    let _ = std::fs::remove_file(&path);
+
+    // Create file with one base
+    let data = vec![0.0f64; 8];
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base
+            .create_zone_structured("Zone", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("create zone");
+        zone.write_coord_f64("X", &data).expect("write X");
+    }
+
+    // Reopen in modify mode and add another base
+    {
+        let file = CgnsFile::modify(&path.to_string_lossy()).expect("modify");
+        assert_eq!(file.base_count().expect("base count"), 1);
+        let _base2 = file.create_base("Base2", 2, 2).expect("create base2");
+    }
+
+    // Verify both bases exist
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        assert_eq!(file.base_count().expect("base count"), 2);
+        assert!(file.base("Base").is_ok());
+        assert!(file.base("Base2").is_ok());
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
 // Multiple zones in one base
 // ---------------------------------------------------------------------------
 #[test]
