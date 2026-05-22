@@ -6,4 +6,4 @@ description = "Safe high-level Rust bindings for CGNS (CFD General Notation Syst
 
 [dependencies]
 cgns-sys = { path = "../cgns-sys" }
-ndarray = "0.16"
+ndarray = "0.17"
