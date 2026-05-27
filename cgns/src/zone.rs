@@ -23,8 +23,29 @@ impl Zone {
         self.index
     }
 
+    /// Return the zone size array.
+    ///
+    /// For unstructured zones: `[num_vertices, num_cells, 0]`.
+    /// For structured 3-D zones: `[ni, nj, nk, ni-1, nj-1, nk-1, 0, 0, 0]`.
+    pub fn zone_size(&self) -> CgnsResult<[i64; 9]> {
+        let _guard = cgns_sys::lock_cgns()?;
+        let mut name_buf = vec![0u8; 64];
+        let mut size = [0i64; 9];
+        let status = unsafe {
+            cgns_sys::cg_zone_read(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                name_buf.as_mut_ptr() as *mut i8,
+                size.as_mut_ptr(),
+            )
+        };
+        check_sys_status(status)?;
+        Ok(size)
+    }
+
     pub fn zone_type(&self) -> CgnsResult<ZoneType> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut raw: u32 = 0;
         let status =
             unsafe { cgns_sys::cg_zone_type(self.file_fn, self.base_index, self.index, &mut raw) };
@@ -34,7 +55,7 @@ impl Zone {
     }
 
     pub fn coord_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut n: i32 = 0;
         let status =
             unsafe { cgns_sys::cg_ncoords(self.file_fn, self.base_index, self.index, &mut n) };
@@ -45,7 +66,7 @@ impl Zone {
     pub fn coord_names(&self) -> CgnsResult<Vec<String>> {
         let n = self.coord_count()?;
         let mut names = Vec::with_capacity(n as usize);
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut data_type: u32 = 0;
@@ -115,7 +136,7 @@ impl Zone {
     }
 
     pub fn solution_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut n: i32 = 0;
         let status =
             unsafe { cgns_sys::cg_nsols(self.file_fn, self.base_index, self.index, &mut n) };
@@ -145,7 +166,7 @@ impl Zone {
 
     pub fn solution(&self, name: &str) -> CgnsResult<Solution> {
         let n = self.solution_count()?;
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut location: u32 = 0;
@@ -223,7 +244,7 @@ impl Zone {
     /// Returns `NotFound` if no section with that name exists.
     pub fn section(&self, name: &str) -> CgnsResult<Section> {
         let n = self.section_count()?;
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut elem_type: u32 = 0;
@@ -425,7 +446,7 @@ impl Zone {
 
     /// Write grid coordinates with arbitrary data type.
     pub fn write_coord_f32(&self, name: &str, data: &[f32]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_name = std::ffi::CString::new(name)
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         let mut coord_idx: i32 = 0;
@@ -445,7 +466,7 @@ impl Zone {
 
     /// Write a flow solution field (32-bit float).
     pub fn write_field_f32(&self, sol: &Solution, name: &str, data: &[f32]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_name = std::ffi::CString::new(name)
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         let mut field: i32 = 0;
@@ -466,7 +487,7 @@ impl Zone {
 
     /// Write a flow solution field (32-bit integer).
     pub fn write_field_i32(&self, sol: &Solution, name: &str, data: &[i32]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_name = std::ffi::CString::new(name)
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         let mut field: i32 = 0;
@@ -487,7 +508,7 @@ impl Zone {
 
     /// Write a flow solution field (64-bit integer).
     pub fn write_field_i64(&self, sol: &Solution, name: &str, data: &[i64]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_name = std::ffi::CString::new(name)
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         let mut field: i32 = 0;
@@ -526,7 +547,7 @@ impl Solution {
     }
 
     pub fn field_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut n: i32 = 0;
         let status = unsafe {
             cgns_sys::cg_nfields(
