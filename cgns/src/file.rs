@@ -41,7 +41,7 @@ impl CgnsFile {
     pub fn base(&self, name: &str) -> CgnsResult<Base> {
         let n = self.base_count()?;
         for i in 1..=n {
-            let _guard = cgns_sys::lock_cgns();
+            let _guard = cgns_sys::lock_cgns()?;
             let mut buf = vec![0u8; 64];
             let mut cell_dim: i32 = 0;
             let mut phys_dim: i32 = 0;
@@ -72,7 +72,7 @@ impl CgnsFile {
     }
 
     pub fn base_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut n: i32 = 0;
         let status = unsafe { cgns_sys::cg_nbases(self.fn_, &mut n) };
         check_sys_status(status)?;

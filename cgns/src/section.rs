@@ -41,7 +41,7 @@ impl Section {
 
     /// Read the section metadata (name, element type, element range, etc.).
     pub fn info(&self) -> CgnsResult<SectionInfo> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut buf = vec![0u8; 64];
         let mut elem_type: u32 = 0;
         let mut start: i64 = 0;
@@ -81,7 +81,7 @@ impl Section {
     /// The returned vector contains the raw CGNS connectivity data.  See the
     /// [struct-level docs](Section#connectivity-layout) for the layout.
     pub fn read_connectivity(&self) -> CgnsResult<Vec<i64>> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut size: i64 = 0;
         let status = unsafe {
             cgns_sys::cg_ElementDataSize(

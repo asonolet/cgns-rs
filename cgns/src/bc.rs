@@ -16,7 +16,7 @@ impl Bc {
 
     /// Read boundary condition metadata.
     pub fn info(&self) -> CgnsResult<BcInfo> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut buf = vec![0u8; 64];
         let mut bocotype: u32 = 0;
         let mut ptset_type: u32 = 0;

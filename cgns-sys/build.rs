@@ -462,6 +462,9 @@ fn emit_link_directives(hdf5_install: &Path, cgns_install: &Path) {
         println!("cargo:rustc-link-lib=dylib=m");
         println!("cargo:rustc-link-lib=dylib=dl");
         println!("cargo:rustc-link-lib=dylib=pthread");
+        // zlib and szip are required when HDF5 is built with deflate/szip support
+        println!("cargo:rustc-link-lib=dylib=z");
+        println!("cargo:rustc-link-lib=dylib=sz");
     }
 }
 

@@ -228,8 +228,11 @@ static CGNS_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Acquire the global CGNS lock (publicly visible so callers who bypass the
 /// safe wrappers can still serialise access).
-pub fn lock_cgns() -> std::sync::MutexGuard<'static, ()> {
-    CGNS_MUTEX.lock().unwrap()
+///
+/// Returns `Err` if the mutex is poisoned (a previous thread panicked while
+/// holding it).  Callers should propagate this with `?`.
+pub fn lock_cgns() -> Result<std::sync::MutexGuard<'static, ()>, String> {
+    CGNS_MUTEX.lock().map_err(|e| format!("CGNS mutex poisoned: {e}"))
 }
 
 /// Ensure the CGNS library uses HDF5 as its file backend.
@@ -252,7 +255,7 @@ pub fn ensure_hdf5_backend() {
 ///
 /// Panics if the filename contains a null byte.
 pub fn open_write(filename: &str) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     ensure_hdf5_backend();
     let c_filename =
         std::ffi::CString::new(filename).map_err(|e| format!("invalid filename: {}", e))?;
@@ -265,7 +268,7 @@ pub fn open_write(filename: &str) -> Result<i32, String> {
 ///
 /// Returns the CGNS file number on success.
 pub fn open_read(filename: &str) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_filename =
         std::ffi::CString::new(filename).map_err(|e| format!("invalid filename: {}", e))?;
     let mut fn_: i32 = 0;
@@ -278,7 +281,7 @@ pub fn open_read(filename: &str) -> Result<i32, String> {
 /// Opens an existing file and allows appending new data without
 /// overwriting existing content.
 pub fn open_modify(filename: &str) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_filename =
         std::ffi::CString::new(filename).map_err(|e| format!("invalid filename: {}", e))?;
     let mut fn_: i32 = 0;
@@ -288,7 +291,7 @@ pub fn open_modify(filename: &str) -> Result<i32, String> {
 
 /// Return the number of boundary conditions on a zone.
 pub fn nbocos(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let mut n: i32 = 0;
     let status = unsafe { cg_nbocos(fn_, base, zone, &mut n) };
     status_to_result(status).map(|_| n)
@@ -306,7 +309,7 @@ pub fn boco_write(
     npnts: i64,
     pnts: &[i64],
 ) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid BC name: {}", e))?;
     let mut bc: i32 = 0;
     let status = unsafe {
@@ -337,7 +340,7 @@ pub fn boco_info(
     ptset_type: &mut u32,
     npnts: &mut i64,
 ) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let mut normal_index: i32 = 0;
     let mut normal_list_size: i64 = 0;
     let mut normal_data_type: u32 = 0;
@@ -365,7 +368,7 @@ pub fn boco_info(
 ///
 /// `pnts` must be pre-allocated to the correct size (retrieved via [`boco_info`]).
 pub fn boco_read(fn_: i32, base: i32, zone: i32, bc: i32, pnts: &mut [i64]) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let status =
         unsafe { cg_boco_read(fn_, base, zone, bc, pnts.as_mut_ptr(), std::ptr::null_mut()) };
     status_to_result(status)
@@ -373,7 +376,7 @@ pub fn boco_read(fn_: i32, base: i32, zone: i32, bc: i32, pnts: &mut [i64]) -> R
 
 /// Return the number of 1-to-1 zone interfaces on a zone.
 pub fn n1to1(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let mut n: i32 = 0;
     let status = unsafe { cg_n1to1(fn_, base, zone, &mut n) };
     status_to_result(status).map(|_| n)
@@ -391,7 +394,7 @@ pub fn write_1to1(
     donor_range: &[i64],
     transform: &[i32],
 ) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid name: {}", e))?;
     let c_donor =
         std::ffi::CString::new(donor_name).map_err(|e| format!("invalid donor name: {}", e))?;
@@ -425,7 +428,7 @@ pub fn read_1to1(
     donor_range: &mut [i64],
     transform: &mut [i32],
 ) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let status = unsafe {
         cg_1to1_read(
             fn_,
@@ -444,7 +447,7 @@ pub fn read_1to1(
 
 /// Return the number of families in a base.
 pub fn nfamilies(fn_: i32, base: i32) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let mut n: i32 = 0;
     let status = unsafe { cg_nfamilies(fn_, base, &mut n) };
     status_to_result(status).map(|_| n)
@@ -452,7 +455,7 @@ pub fn nfamilies(fn_: i32, base: i32) -> Result<i32, String> {
 
 /// Write a family.
 pub fn family_write(fn_: i32, base: i32, name: &str) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid family name: {}", e))?;
     let mut id: i32 = 0;
     let status = unsafe { cg_family_write(fn_, base, c_name.as_ptr(), &mut id) };
@@ -461,7 +464,7 @@ pub fn family_write(fn_: i32, base: i32, name: &str) -> Result<i32, String> {
 
 /// Read a family name.
 pub fn family_read(fn_: i32, base: i32, family: i32, name: &mut [u8]) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let mut nboco: i32 = 0;
     let mut ngeos: i32 = 0;
     let status = unsafe {
@@ -479,14 +482,14 @@ pub fn family_read(fn_: i32, base: i32, family: i32, name: &mut [u8]) -> Result<
 
 /// Close a CGNS file.
 pub fn close(fn_: i32) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let status = unsafe { cg_close(fn_) };
     status_to_result(status)
 }
 
 /// Write a CGNS base node.
 pub fn base_write(fn_: i32, name: &str, cell_dim: i32, phys_dim: i32) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid base name: {}", e))?;
     let mut base: i32 = 0;
     let status = unsafe { cg_base_write(fn_, c_name.as_ptr(), cell_dim, phys_dim, &mut base) };
@@ -495,7 +498,7 @@ pub fn base_write(fn_: i32, name: &str, cell_dim: i32, phys_dim: i32) -> Result<
 
 /// Write a structured zone.
 pub fn zone_write_structured(fn_: i32, base: i32, name: &str, size: &[i64]) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid zone name: {}", e))?;
     let mut zone: i32 = 0;
     let status = unsafe {
@@ -527,7 +530,7 @@ pub fn section_write(
     nbndry: i32,
     elements: &[i64],
 ) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name =
         std::ffi::CString::new(name).map_err(|e| format!("invalid section name: {}", e))?;
     let mut section_idx: i32 = 0;
@@ -550,7 +553,7 @@ pub fn section_write(
 
 /// Return the number of sections in a zone.
 pub fn nsections(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let mut n: i32 = 0;
     let status = unsafe { cg_nsections(fn_, base, zone, &mut n) };
     status_to_result(status).map(|_| n)
@@ -558,7 +561,7 @@ pub fn nsections(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
 
 /// Return the size (in `cgsize_t` elements) of a section's connectivity array.
 pub fn element_data_size(fn_: i32, base: i32, zone: i32, section: i32) -> Result<i64, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let mut size: i64 = 0;
     let status = unsafe { cg_ElementDataSize(fn_, base, zone, section, &mut size) };
     status_to_result(status).map(|_| size)
@@ -575,7 +578,7 @@ pub fn elements_read(
     section: i32,
     elements: &mut [i64],
 ) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let status = unsafe {
         cg_elements_read(
             fn_,
@@ -598,7 +601,7 @@ pub fn zone_write_unstructured(
     name: &str,
     size: &[i64],
 ) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid zone name: {}", e))?;
     let mut zone: i32 = 0;
     let status = unsafe {
@@ -626,7 +629,7 @@ pub fn coord_write(
     name: &str,
     data: &[f64],
 ) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name =
         std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
     let mut coord_idx: i32 = 0;
@@ -646,7 +649,7 @@ pub fn coord_write(
 
 /// Write a solution node.
 pub fn sol_write(fn_: i32, base: i32, zone: i32, name: &str, location: u32) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name =
         std::ffi::CString::new(name).map_err(|e| format!("invalid solution name: {}", e))?;
     let mut sol: i32 = 0;
@@ -664,7 +667,7 @@ pub fn field_write(
     name: &str,
     data: &[f64],
 ) -> Result<i32, String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
     let mut field: i32 = 0;
     let status = unsafe {
@@ -698,7 +701,7 @@ pub fn coord_read(
     rmax: &[i64],
     data: &mut [f64],
 ) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name =
         std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
     let status = unsafe {
@@ -729,7 +732,7 @@ pub fn field_read(
     rmax: &[i64],
     data: &mut [f64],
 ) -> Result<(), String> {
-    let _guard = lock_cgns();
+    let _guard = lock_cgns()?;
     let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
     let status = unsafe {
         cg_field_read(

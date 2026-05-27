@@ -12,7 +12,7 @@ impl Base {
     }
 
     pub fn name(&self) -> CgnsResult<String> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut buf = vec![0u8; 64];
         let mut cell_dim: i32 = 0;
         let mut phys_dim: i32 = 0;
@@ -72,7 +72,7 @@ impl Base {
     }
 
     pub fn zone_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let mut n: i32 = 0;
         let status = unsafe { cgns_sys::cg_nzones(self.file_fn, self.index, &mut n) };
         check_sys_status(status)?;
@@ -106,7 +106,7 @@ impl Base {
     pub fn family_names(&self) -> CgnsResult<Vec<String>> {
         let n = self.family_count()?;
         let mut names = Vec::with_capacity(n as usize);
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             cgns_sys::family_read(self.file_fn, self.index, i, &mut buf)?;
