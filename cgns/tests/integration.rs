@@ -167,14 +167,14 @@ fn test_comprehensive_structured_3d() {
         sol_v
             .write_field_f64("Density", &field_f64)
             .expect("write Density");
-        zone_a
-            .write_field_f32(&sol_v, "VelX", &field_f32)
+        sol_v
+            .write_field_f32("VelX", &field_f32)
             .expect("write VelX");
-        zone_a
-            .write_field_i32(&sol_v, "NodeID", &field_i32)
+        sol_v
+            .write_field_i32("NodeID", &field_i32)
             .expect("write NodeID");
-        zone_a
-            .write_field_i64(&sol_v, "GlobalID", &field_i64)
+        sol_v
+            .write_field_i64("GlobalID", &field_i64)
             .expect("write GlobalID");
 
         let sol_c = zone_a
@@ -1448,12 +1448,11 @@ fn test_solution_field_metadata() {
         let sol = zone
             .write_solution("FlowSolution", GridLocation::Vertex)
             .expect("write solution");
-        zone.write_field_f32(&sol, "Pressure", &data_f32)
+        sol.write_field_f32("Pressure", &data_f32)
             .expect("write Pressure");
-        zone.write_field_i32(&sol, "Index", &data_i32)
+        sol.write_field_i32("Index", &data_i32)
             .expect("write Index");
-        zone.write_field_i64(&sol, "GID", &data_i64)
-            .expect("write GID");
+        sol.write_field_i64("GID", &data_i64).expect("write GID");
     }
 
     {
@@ -1566,12 +1565,9 @@ fn test_owned_read_coord_field() {
             .write_solution("Sol", GridLocation::Vertex)
             .expect("write solution");
         sol.write_field_f64("F_f64", &xs_f64).expect("write F_f64");
-        zone.write_field_f32(&sol, "F_f32", &xs_f32)
-            .expect("write F_f32");
-        zone.write_field_i32(&sol, "F_i32", &xs_i32)
-            .expect("write F_i32");
-        zone.write_field_i64(&sol, "F_i64", &xs_i64)
-            .expect("write F_i64");
+        sol.write_field_f32("F_f32", &xs_f32).expect("write F_f32");
+        sol.write_field_i32("F_i32", &xs_i32).expect("write F_i32");
+        sol.write_field_i64("F_i64", &xs_i64).expect("write F_i64");
     }
 
     {

@@ -38,23 +38,6 @@ pub struct Zone {
     pub(crate) index: i32,
 }
 
-macro_rules! impl_typed_field_write {
-    ($method:ident, $sys_fn:ident, $ty:ty) => {
-        pub fn $method(&self, sol: &Solution, name: &str, data: &[$ty]) -> CgnsResult<()> {
-            cgns_sys::$sys_fn(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                sol.index,
-                name,
-                data,
-            )
-            .map_err(crate::error::CgnsError::Invalid)?;
-            Ok(())
-        }
-    };
-}
-
 macro_rules! impl_typed_coord_write {
     ($method:ident, $sys_fn:ident, $ty:ty) => {
         pub fn $method(&self, name: &str, data: &[$ty]) -> CgnsResult<()> {
@@ -685,10 +668,6 @@ impl Zone {
     impl_typed_coord_write!(write_coord_f32, coord_write_f32, f32);
     impl_typed_coord_write!(write_coord_i32, coord_write_i32, i32);
     impl_typed_coord_write!(write_coord_i64, coord_write_i64, i64);
-
-    impl_typed_field_write!(write_field_f32, field_write_f32, f32);
-    impl_typed_field_write!(write_field_i32, field_write_i32, i32);
-    impl_typed_field_write!(write_field_i64, field_write_i64, i64);
 }
 
 /// An opaque handle to a solution node in a zone.
@@ -814,6 +793,45 @@ impl Solution {
             name,
             data,
         )?;
+        Ok(())
+    }
+
+    pub fn write_field_f32(&self, name: &str, data: &[f32]) -> CgnsResult<()> {
+        cgns_sys::field_write_f32(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
+        Ok(())
+    }
+
+    pub fn write_field_i32(&self, name: &str, data: &[i32]) -> CgnsResult<()> {
+        cgns_sys::field_write_i32(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
+        Ok(())
+    }
+
+    pub fn write_field_i64(&self, name: &str, data: &[i64]) -> CgnsResult<()> {
+        cgns_sys::field_write_i64(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(())
     }
 
