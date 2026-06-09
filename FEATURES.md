@@ -27,7 +27,7 @@
 | Count | ✅ `base_count` | |
 | Enumerate | ✅ `bases()` | |
 | Query by name | ✅ `base(name)` | |
-| Read metadata | 🔲 | cell_dim, phys_dim not exposed |
+| Read metadata | ✅ `Base::cell_dim()`, `Base::phys_dim()` | |
 | Delete | 🔲 | `cg_base_delete` not wrapped |
 
 ---
@@ -41,7 +41,8 @@
 | Count | ✅ `zone_count` | |
 | Enumerate | ✅ `zones()` | |
 | Query zone type | ✅ `zone_type()` | |
-| Read zone size | 🔲 | `cg_zone_read` not wrapped |
+| Read zone size | ✅ `Zone::size()` | Calls `cg_zone_read` |
+| Zone index dimension | ✅ `Zone::index_dim()` | Calls `cg_index_dim` |
 | Zone delete | 🔲 | `cg_zone_delete` not wrapped |
 | Zone iterative data | 🔲 | `cg_ziter_write`/`read` |
 
@@ -56,6 +57,7 @@
 | Read f64 full | ✅ `read_coord_f64` | Sub-range via rmin/rmax |
 | Read f64 sub-range | ✅ | |
 | Read f32 | 🔲 | |
+| Read coord as Vec (f64/f32/i32/i64) | ✅ `read_coord_*_vec()` | Owned-return convenience methods |
 | Coord info (names, dims) | ✅ `coord_names`, `coord_count` | |
 | Grid coordinates (`cg_grid_*`) | 🔲 | Grid family info not wrapped |
 
@@ -98,7 +100,12 @@
 | Read field f32 | 🔲 | |
 | Read field i32 | 🔲 | |
 | Read field i64 | 🔲 | |
-| Field info (count, names) | ✅ `field_count` | |
+| Solution metadata | ✅ `Solution::info()` | name, location |
+| Field info (count, names, types) | ✅ `field_names`, `field_info_list` | |
+| Read field f32 full | 🔲 | |
+| Read field i32 full | 🔲 | |
+| Read field i64 full | 🔲 | |
+| Read field f64/f32/i32/i64 full as `Vec` | ✅ `read_field_*_vec()` | Owned-return convenience methods |
 | Grid location enum | ✅ 8 variants | Vertex, CellCenter, … |
 | Solution delete | 🔲 | `cg_sol_delete` not wrapped |
 
@@ -115,7 +122,7 @@
 | Read metadata | ✅ `BcInfo` | name, type, point_set_type, npnts |
 | Read point data | ✅ `read_points` → `Vec<i64>` | |
 | BC types enum | ✅ 24 variants | Wall, Inflow, Farfield, … |
-| Point set types enum | ✅ 4 variants | PointList, PointRange, ElementRange, ElementList |
+| Point set types enum | ✅ 7 variants | PointList, PointRange, ElementRange, ElementList, PointListDonor, PointRangeDonor, CellListDonor |
 | BC dataset (`BCDataSet`) | 🔲 | `cg_bcdataset_*` not wrapped |
 | BC data types | 🔲 | `cg_bcdata_write` not wrapped |
 | BC delete | 🔲 | `cg_boco_delete` not wrapped |
@@ -137,9 +144,9 @@
 
 | Feature | Status | Notes |
 |---|---|---|
-| Write general connectivity | 🔲 | `cg_conn_write` |
-| Read general connectivity | 🔲 | `cg_conn_read` |
-| Enumerate connections | 🔲 | `cg_nconns` |
+| Write general connectivity | ✅ `Zone::write_conn` | PointList, PointRange + donor point sets |
+| Read general connectivity | ✅ `GeneralConnectivity::read_data` | Returns `GeneralConnectivityData` |
+| Enumerate connections | ✅ `Zone::nconns`, `conn`, `general_connectivities` | |
 | Periodic connections | 🔲 | |
 
 ### 8.3 Overset Connectivity
@@ -241,7 +248,8 @@
 | `DataType` enum | ✅ I4, I8, R4, R8, Char | |
 | `ZoneType` enum | ✅ Structured, Unstructured | |
 | `GridLocation` enum | ✅ 8 variants | |
-| `PointSetType` enum | ✅ 4 variants | |
+| `PointSetType` enum | ✅ 7 variants | PointList, PointRange, ElementRange, ElementList, PointListDonor, PointRangeDonor, CellListDonor |
+| `GridConnectivityType` enum | ✅ 5 variants | Null, UserDefined, Overset, Abutting, Abutting1to1 |
 | `ElementType` enum | ✅ 22 variants | |
 | `BcType` enum | ✅ 24 variants | |
 | `to_raw()` / `from_raw()` conversion | ✅ All enums | |
@@ -298,8 +306,8 @@
 |---|---|---|
 | P0 | Add field reads for f32, i32, i64 types | Small |
 | P0 | Add f32 coordinate read | Small |
-| P0 | Expose zone size read (`cg_zone_read`) | Small |
-| P0 | Expose cell_dim and phys_dim on `Base` | Small |
+| P0 | Expose zone size read (`cg_zone_read`) | ✅ Done |
+| P0 | Expose cell_dim and phys_dim on `Base` | ✅ Done |
 | P1 | Read field / coord via ndarray | Small |
 | P1 | Add `CgnsFile::save` / flush | Small |
 | P1 | Add `Zone::coord_info` (data type per coord) | Small |
@@ -308,7 +316,7 @@
 
 | Priority | Task | Effort |
 |---|---|---|
-| P0 | General connectivity (`cg_conn_*`): write, read, enumerate | Medium |
+| P0 | General connectivity (`cg_conn_*`): write, read, enumerate | ✅ Done |
 | P1 | BC datasets (`cg_bcdataset_*`): write, read | Medium |
 | P1 | BC data on BC (`cg_bcdata_write`/`read`) | Medium |
 | P1 | Descriptors (`cg_descriptor_*`): write, read | Small |
@@ -343,7 +351,7 @@
 
 | Priority | Task | Effort |
 |---|---|---|
-| P0 | Update README coverage table (BC, connectivity, families are now done) | Small |
+| P0 | Update README coverage table | Small |
 | P1 | Integration tests for each new feature | Ongoing |
 | P1 | Round-trip fuzz testing for all types | Medium |
 | P2 | Benchmark suite for large files | Medium |
@@ -355,14 +363,14 @@
 | Category | Total Features | ✅ High-Level | 🟡 FFI Only | 🔲 Not Bound |
 |---|---|---|---|---|
 | File Operations | 5 | 3 | 1 | 1 |
-| Bases | 6 | 4 | 0 | 2 |
-| Zones | 7 | 4 | 0 | 3 |
-| Grid Coordinates | 7 | 4 | 0 | 3 |
+| Bases | 6 | 6 | 0 | 0 |
+| Zones | 8 | 6 | 0 | 2 |
+| Grid Coordinates | 8 | 5 | 0 | 3 |
 | Element Sections | 12 | 9 | 0 | 3 |
-| Solutions & Fields | 15 | 9 | 0 | 6 |
+| Solutions & Fields | 18 | 13 | 0 | 5 |
 | Boundary Conditions | 8 | 5 | 0 | 3 |
 | 1-to-1 Connectivity | 4 | 4 | 0 | 0 |
-| General Connectivity | 4 | 0 | 0 | 4 |
+| General Connectivity | 4 | 3 | 0 | 1 |
 | Overset | 2 | 0 | 0 | 2 |
 | Families | 7 | 3 | 0 | 4 |
 | Iterative / Unsteady | 5 | 0 | 0 | 5 |
@@ -372,9 +380,9 @@
 | Links | 2 | 0 | 0 | 2 |
 | Low-Level Tree | 2 | 0 | 0 | 2 |
 | Array API | 3 | 0 | 0 | 3 |
-| Enums / Types | 6 | 6 | 0 | 0 |
+| Enums / Types | 7 | 7 | 0 | 0 |
 | Error Handling | 4 | 2 | 2 | 0 |
 | Thread Safety | 3 | 1 | 2 | 0 |
 | Parallel CGNS | 1 | 0 | 0 | 1 |
 | CLI Tools | 6 | 6 | 0 | 0 |
-| **Total** | **114** | **60** | **5** | **49** |
+| **Total** | **122** | **73** | **5** | **44** |
