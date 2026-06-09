@@ -55,6 +55,16 @@ macro_rules! impl_typed_field_write {
     };
 }
 
+macro_rules! impl_typed_coord_write {
+    ($method:ident, $sys_fn:ident, $ty:ty) => {
+        pub fn $method(&self, name: &str, data: &[$ty]) -> CgnsResult<()> {
+            cgns_sys::$sys_fn(self.file_fn, self.base_index, self.index, name, data)
+                .map_err(crate::error::CgnsError::Invalid)?;
+            Ok(())
+        }
+    };
+}
+
 macro_rules! impl_typed_coord_read {
     ($method:ident, $sys_fn:ident, $ty:ty) => {
         pub fn $method(
@@ -672,10 +682,22 @@ impl Zone {
         })
     }
 
-    /// Write grid coordinates with arbitrary data type.
-    pub fn write_coord_f32(&self, name: &str, data: &[f32]) -> CgnsResult<()> {
-        cgns_sys::coord_write_f32(self.file_fn, self.base_index, self.index, name, data)
-            .map_err(crate::error::CgnsError::Invalid)?;
+    impl_typed_coord_write!(write_coord_f32, coord_write_f32, f32);
+    impl_typed_coord_write!(write_coord_i32, coord_write_i32, i32);
+    impl_typed_coord_write!(write_coord_i64, coord_write_i64, i64);
+
+    /// Write a 64-bit float field using the generic sys function
+    /// (no typed `field_write_f64` exists in the C API).
+    pub fn write_field_f64(&self, sol: &Solution, name: &str, data: &[f64]) -> CgnsResult<()> {
+        cgns_sys::field_write(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            sol.index,
+            cgns_sys::DataType_t_RealDouble,
+            name,
+            data,
+        )?;
         Ok(())
     }
 
