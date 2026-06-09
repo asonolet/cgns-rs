@@ -35,6 +35,7 @@ impl CgnsFile {
         Ok(Base {
             file_fn: self.fn_,
             index,
+            name: name.to_string(),
         })
     }
 
@@ -62,6 +63,7 @@ impl CgnsFile {
                 return Ok(Base {
                     file_fn: self.fn_,
                     index: i,
+                    name: name.to_string(),
                 });
             }
         }
@@ -83,9 +85,27 @@ impl CgnsFile {
         let n = self.base_count()?;
         let mut bases = Vec::with_capacity(n as usize);
         for i in 1..=n {
+            let _guard = cgns_sys::lock_cgns();
+            let mut buf = vec![0u8; 64];
+            let mut cell_dim: i32 = 0;
+            let mut phys_dim: i32 = 0;
+            let status = unsafe {
+                cgns_sys::cg_base_read(
+                    self.fn_,
+                    i,
+                    buf.as_mut_ptr() as *mut i8,
+                    &mut cell_dim,
+                    &mut phys_dim,
+                )
+            };
+            check_sys_status(status)?;
+            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+            let name = std::str::from_utf8(&buf[..end])
+                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
             bases.push(Base {
                 file_fn: self.fn_,
                 index: i,
+                name: name.to_string(),
             });
         }
         Ok(bases)

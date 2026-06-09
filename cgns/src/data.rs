@@ -329,6 +329,285 @@ impl BcType {
     }
 }
 
+/// CGNS mass units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MassUnits {
+    Null,
+    UserDefined,
+    Kilogram,
+    Gram,
+    Slug,
+    PoundMass,
+}
+
+impl MassUnits {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::MassUnits_t_MassUnitsNull,
+            Self::UserDefined => cgns_sys::MassUnits_t_MassUnitsUserDefined,
+            Self::Kilogram => cgns_sys::MassUnits_t_Kilogram,
+            Self::Gram => cgns_sys::MassUnits_t_Gram,
+            Self::Slug => cgns_sys::MassUnits_t_Slug,
+            Self::PoundMass => cgns_sys::MassUnits_t_PoundMass,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::MassUnits_t_MassUnitsNull => Some(Self::Null),
+            x if x == cgns_sys::MassUnits_t_MassUnitsUserDefined => Some(Self::UserDefined),
+            x if x == cgns_sys::MassUnits_t_Kilogram => Some(Self::Kilogram),
+            x if x == cgns_sys::MassUnits_t_Gram => Some(Self::Gram),
+            x if x == cgns_sys::MassUnits_t_Slug => Some(Self::Slug),
+            x if x == cgns_sys::MassUnits_t_PoundMass => Some(Self::PoundMass),
+            _ => None,
+        }
+    }
+}
+
+/// CGNS length units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LengthUnits {
+    Null,
+    UserDefined,
+    Meter,
+    Centimeter,
+    Millimeter,
+    Foot,
+    Inch,
+}
+
+impl LengthUnits {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::LengthUnits_t_LengthUnitsNull,
+            Self::UserDefined => cgns_sys::LengthUnits_t_LengthUnitsUserDefined,
+            Self::Meter => cgns_sys::LengthUnits_t_Meter,
+            Self::Centimeter => cgns_sys::LengthUnits_t_Centimeter,
+            Self::Millimeter => cgns_sys::LengthUnits_t_Millimeter,
+            Self::Foot => cgns_sys::LengthUnits_t_Foot,
+            Self::Inch => cgns_sys::LengthUnits_t_Inch,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::LengthUnits_t_LengthUnitsNull => Some(Self::Null),
+            x if x == cgns_sys::LengthUnits_t_LengthUnitsUserDefined => Some(Self::UserDefined),
+            x if x == cgns_sys::LengthUnits_t_Meter => Some(Self::Meter),
+            x if x == cgns_sys::LengthUnits_t_Centimeter => Some(Self::Centimeter),
+            x if x == cgns_sys::LengthUnits_t_Millimeter => Some(Self::Millimeter),
+            x if x == cgns_sys::LengthUnits_t_Foot => Some(Self::Foot),
+            x if x == cgns_sys::LengthUnits_t_Inch => Some(Self::Inch),
+            _ => None,
+        }
+    }
+}
+
+/// CGNS time units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimeUnits {
+    Null,
+    UserDefined,
+    Second,
+}
+
+impl TimeUnits {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::TimeUnits_t_TimeUnitsNull,
+            Self::UserDefined => cgns_sys::TimeUnits_t_TimeUnitsUserDefined,
+            Self::Second => cgns_sys::TimeUnits_t_Second,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::TimeUnits_t_TimeUnitsNull => Some(Self::Null),
+            x if x == cgns_sys::TimeUnits_t_TimeUnitsUserDefined => Some(Self::UserDefined),
+            x if x == cgns_sys::TimeUnits_t_Second => Some(Self::Second),
+            _ => None,
+        }
+    }
+}
+
+/// CGNS temperature units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TemperatureUnits {
+    Null,
+    UserDefined,
+    Kelvin,
+    Celsius,
+    Rankine,
+    Fahrenheit,
+}
+
+impl TemperatureUnits {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::TemperatureUnits_t_TemperatureUnitsNull,
+            Self::UserDefined => cgns_sys::TemperatureUnits_t_TemperatureUnitsUserDefined,
+            Self::Kelvin => cgns_sys::TemperatureUnits_t_Kelvin,
+            Self::Celsius => cgns_sys::TemperatureUnits_t_Celsius,
+            Self::Rankine => cgns_sys::TemperatureUnits_t_Rankine,
+            Self::Fahrenheit => cgns_sys::TemperatureUnits_t_Fahrenheit,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::TemperatureUnits_t_TemperatureUnitsNull => Some(Self::Null),
+            x if x == cgns_sys::TemperatureUnits_t_TemperatureUnitsUserDefined => {
+                Some(Self::UserDefined)
+            }
+            x if x == cgns_sys::TemperatureUnits_t_Kelvin => Some(Self::Kelvin),
+            x if x == cgns_sys::TemperatureUnits_t_Celsius => Some(Self::Celsius),
+            x if x == cgns_sys::TemperatureUnits_t_Rankine => Some(Self::Rankine),
+            x if x == cgns_sys::TemperatureUnits_t_Fahrenheit => Some(Self::Fahrenheit),
+            _ => None,
+        }
+    }
+}
+
+/// CGNS angle units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AngleUnits {
+    Null,
+    UserDefined,
+    Degree,
+    Radian,
+}
+
+impl AngleUnits {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::AngleUnits_t_AngleUnitsNull,
+            Self::UserDefined => cgns_sys::AngleUnits_t_AngleUnitsUserDefined,
+            Self::Degree => cgns_sys::AngleUnits_t_Degree,
+            Self::Radian => cgns_sys::AngleUnits_t_Radian,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::AngleUnits_t_AngleUnitsNull => Some(Self::Null),
+            x if x == cgns_sys::AngleUnits_t_AngleUnitsUserDefined => Some(Self::UserDefined),
+            x if x == cgns_sys::AngleUnits_t_Degree => Some(Self::Degree),
+            x if x == cgns_sys::AngleUnits_t_Radian => Some(Self::Radian),
+            _ => None,
+        }
+    }
+}
+
+/// CGNS data classification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DataClass {
+    Null,
+    UserDefined,
+    Dimensional,
+    NormalizedByDimensional,
+    NormalizedByUnknownDimensional,
+    NondimensionalParameter,
+    DimensionlessConstant,
+}
+
+impl DataClass {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::DataClass_t_DataClassNull,
+            Self::UserDefined => cgns_sys::DataClass_t_DataClassUserDefined,
+            Self::Dimensional => cgns_sys::DataClass_t_Dimensional,
+            Self::NormalizedByDimensional => cgns_sys::DataClass_t_NormalizedByDimensional,
+            Self::NormalizedByUnknownDimensional => {
+                cgns_sys::DataClass_t_NormalizedByUnknownDimensional
+            }
+            Self::NondimensionalParameter => cgns_sys::DataClass_t_NondimensionalParameter,
+            Self::DimensionlessConstant => cgns_sys::DataClass_t_DimensionlessConstant,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::DataClass_t_DataClassNull => Some(Self::Null),
+            x if x == cgns_sys::DataClass_t_DataClassUserDefined => Some(Self::UserDefined),
+            x if x == cgns_sys::DataClass_t_Dimensional => Some(Self::Dimensional),
+            x if x == cgns_sys::DataClass_t_NormalizedByDimensional => {
+                Some(Self::NormalizedByDimensional)
+            }
+            x if x == cgns_sys::DataClass_t_NormalizedByUnknownDimensional => {
+                Some(Self::NormalizedByUnknownDimensional)
+            }
+            x if x == cgns_sys::DataClass_t_NondimensionalParameter => {
+                Some(Self::NondimensionalParameter)
+            }
+            x if x == cgns_sys::DataClass_t_DimensionlessConstant => {
+                Some(Self::DimensionlessConstant)
+            }
+            _ => None,
+        }
+    }
+}
+
+/// CGNS simulation type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SimulationType {
+    Null,
+    UserDefined,
+    TimeAccurate,
+    NonTimeAccurate,
+}
+
+impl SimulationType {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::SimulationType_t_SimulationTypeNull,
+            Self::UserDefined => cgns_sys::SimulationType_t_SimulationTypeUserDefined,
+            Self::TimeAccurate => cgns_sys::SimulationType_t_TimeAccurate,
+            Self::NonTimeAccurate => cgns_sys::SimulationType_t_NonTimeAccurate,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::SimulationType_t_SimulationTypeNull => Some(Self::Null),
+            x if x == cgns_sys::SimulationType_t_SimulationTypeUserDefined => {
+                Some(Self::UserDefined)
+            }
+            x if x == cgns_sys::SimulationType_t_TimeAccurate => Some(Self::TimeAccurate),
+            x if x == cgns_sys::SimulationType_t_NonTimeAccurate => Some(Self::NonTimeAccurate),
+            _ => None,
+        }
+    }
+}
+
+/// A system of physical units for the base.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnitsSystem {
+    pub mass: MassUnits,
+    pub length: LengthUnits,
+    pub time: TimeUnits,
+    pub temperature: TemperatureUnits,
+    pub angle: AngleUnits,
+}
+
+impl UnitsSystem {
+    pub const fn new(
+        mass: MassUnits,
+        length: LengthUnits,
+        time: TimeUnits,
+        temperature: TemperatureUnits,
+        angle: AngleUnits,
+    ) -> Self {
+        Self {
+            mass,
+            length,
+            time,
+            temperature,
+            angle,
+        }
+    }
+}
+
 /// How a point set is specified for a boundary condition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PointSetType {

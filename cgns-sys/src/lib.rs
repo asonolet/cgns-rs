@@ -746,3 +746,71 @@ pub fn field_read(
     };
     status_to_result(status)
 }
+
+// ---------------------------------------------------------------------------
+// Base-level metadata wrappers: units, dataclass, simulation type
+// ---------------------------------------------------------------------------
+
+/// Write units at the current node (navigate there first with [`gopath`]).
+pub fn units_write(
+    mass: u32,
+    length: u32,
+    time: u32,
+    temperature: u32,
+    angle: u32,
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe { cg_units_write(mass, length, time, temperature, angle) };
+    status_to_result(status)
+}
+
+/// Read units from the current node.
+pub fn units_read(
+    mass: &mut u32,
+    length: &mut u32,
+    time: &mut u32,
+    temperature: &mut u32,
+    angle: &mut u32,
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe { cg_units_read(mass, length, time, temperature, angle) };
+    status_to_result(status)
+}
+
+/// Write data class at the current node.
+pub fn dataclass_write(dataclass: u32) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe { cg_dataclass_write(dataclass) };
+    status_to_result(status)
+}
+
+/// Read data class from the current node.
+pub fn dataclass_read(dataclass: &mut u32) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe { cg_dataclass_read(dataclass) };
+    status_to_result(status)
+}
+
+/// Write simulation type for a base.
+pub fn simulation_type_write(fn_: i32, base: i32, sim_type: u32) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe { cg_simulation_type_write(fn_, base, sim_type) };
+    status_to_result(status)
+}
+
+/// Read simulation type from a base.
+pub fn simulation_type_read(fn_: i32, base: i32, sim_type: &mut u32) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe { cg_simulation_type_read(fn_, base, sim_type) };
+    status_to_result(status)
+}
+
+/// Navigate to a CGNS node by path.
+///
+/// The path uses Unix-style directory syntax (e.g. `/BaseName/ZoneName`).
+pub fn gopath(fn_: i32, path: &str) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let c_path = std::ffi::CString::new(path).map_err(|e| format!("invalid path: {}", e))?;
+    let status = unsafe { cg_gopath(fn_, c_path.as_ptr()) };
+    status_to_result(status)
+}

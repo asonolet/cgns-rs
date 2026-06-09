@@ -1480,6 +1480,56 @@ fn test_solution_field_metadata() {
 }
 
 // ---------------------------------------------------------------------------
+// Units, DataClass, SimulationType readback
+// ---------------------------------------------------------------------------
+#[test]
+fn test_units_dataclass_simulation_type() {
+    let path = test_path("units_dataclass");
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+
+        use cgns::data::*;
+        base.write_units(&UnitsSystem::new(
+            MassUnits::Kilogram,
+            LengthUnits::Meter,
+            TimeUnits::Second,
+            TemperatureUnits::Kelvin,
+            AngleUnits::Radian,
+        ))
+        .expect("write units");
+
+        base.write_dataclass(DataClass::Dimensional)
+            .expect("write dataclass");
+
+        base.write_simulation_type(SimulationType::NonTimeAccurate)
+            .expect("write simulation_type");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let base = file.base("Base").expect("find base");
+
+        let units = base.read_units().expect("read units");
+        assert_eq!(units.mass, cgns::data::MassUnits::Kilogram);
+        assert_eq!(units.length, cgns::data::LengthUnits::Meter);
+        assert_eq!(units.time, cgns::data::TimeUnits::Second);
+        assert_eq!(units.temperature, cgns::data::TemperatureUnits::Kelvin);
+        assert_eq!(units.angle, cgns::data::AngleUnits::Radian);
+
+        let dc = base.read_dataclass().expect("read dataclass");
+        assert_eq!(dc, cgns::data::DataClass::Dimensional);
+
+        let st = base.read_simulation_type().expect("read sim type");
+        assert_eq!(st, cgns::data::SimulationType::NonTimeAccurate);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
 // Various data types — write coordinates as f32, i32, i64
 // ---------------------------------------------------------------------------
 #[test]
