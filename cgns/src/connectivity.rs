@@ -1,5 +1,5 @@
 use crate::data::{DataType, GridConnectivityType, GridLocation, PointSetType, ZoneType};
-use crate::error::{check_sys_status, CgnsError, CgnsResult};
+use crate::error::{CgnsError, CgnsResult};
 
 /// An opaque handle to a 1-to-1 zone interface.
 pub struct OneToOne {
@@ -79,7 +79,6 @@ impl GeneralConnectivity {
 
     /// Read connection metadata.
     pub fn info(&self) -> CgnsResult<GeneralConnectivityInfo> {
-        let _guard = cgns_sys::lock_cgns();
         let mut name_buf = vec![0u8; 64];
         let mut donor_buf = vec![0u8; 64];
         let mut location: u32 = 0;
@@ -90,25 +89,23 @@ impl GeneralConnectivity {
         let mut donor_ptset_type: u32 = 0;
         let mut donor_datatype: u32 = 0;
         let mut ndata_donor: i64 = 0;
-        let status = unsafe {
-            cgns_sys::cg_conn_info(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                name_buf.as_mut_ptr() as *mut i8,
-                &mut location,
-                &mut connect_type,
-                &mut ptset_type,
-                &mut npnts,
-                donor_buf.as_mut_ptr() as *mut i8,
-                &mut donor_zonetype,
-                &mut donor_ptset_type,
-                &mut donor_datatype,
-                &mut ndata_donor,
-            )
-        };
-        check_sys_status(status)?;
+        cgns_sys::conn_info(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            &mut name_buf,
+            &mut location,
+            &mut connect_type,
+            &mut ptset_type,
+            &mut npnts,
+            &mut donor_buf,
+            &mut donor_zonetype,
+            &mut donor_ptset_type,
+            &mut donor_datatype,
+            &mut ndata_donor,
+        )
+        .map_err(CgnsError::Invalid)?;
         let name = read_c_string(&name_buf);
         let donor_name = read_c_string(&donor_buf);
         Ok(GeneralConnectivityInfo {
@@ -143,19 +140,15 @@ impl GeneralConnectivity {
         let ndata_vals = info.num_donor_data as usize * index_dim as usize;
         let mut points = vec![0i64; npts_vals];
         let mut donor_data = vec![0i64; ndata_vals];
-        let _guard = cgns_sys::lock_cgns();
-        let status = unsafe {
-            cgns_sys::cg_conn_read(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                points.as_mut_ptr(),
-                cgns_sys::DataType_t_Integer,
-                donor_data.as_mut_ptr(),
-            )
-        };
-        check_sys_status(status)?;
+        cgns_sys::conn_read(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            &mut points,
+            &mut donor_data,
+        )
+        .map_err(CgnsError::Invalid)?;
         Ok(GeneralConnectivityData {
             info,
             points,

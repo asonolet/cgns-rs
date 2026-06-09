@@ -442,6 +442,127 @@ pub fn read_1to1(
     status_to_result(status)
 }
 
+/// Return the number of general (non-1-to-1) zone interface connections.
+pub fn nconns(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nconns(fn_, base, zone, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Read general connectivity info.
+#[allow(clippy::too_many_arguments)]
+pub fn conn_info(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    conn: i32,
+    name: &mut [u8],
+    location: &mut u32,
+    connect_type: &mut u32,
+    ptset_type: &mut u32,
+    npnts: &mut i64,
+    donor_name: &mut [u8],
+    donor_zonetype: &mut u32,
+    donor_ptset_type: &mut u32,
+    donor_datatype: &mut u32,
+    ndata_donor: &mut i64,
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_conn_info(
+            fn_,
+            base,
+            zone,
+            conn,
+            name.as_mut_ptr() as *mut i8,
+            location as *mut u32,
+            connect_type as *mut u32,
+            ptset_type as *mut u32,
+            npnts as *mut i64,
+            donor_name.as_mut_ptr() as *mut i8,
+            donor_zonetype as *mut u32,
+            donor_ptset_type as *mut u32,
+            donor_datatype as *mut u32,
+            ndata_donor as *mut i64,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Read general connectivity point and donor data.
+///
+/// `points` and `donor_data` must be pre-allocated to the correct size.
+pub fn conn_read(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    conn: i32,
+    points: &mut [i64],
+    donor_data: &mut [i64],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_conn_read(
+            fn_,
+            base,
+            zone,
+            conn,
+            points.as_mut_ptr(),
+            DataType_t_Integer,
+            donor_data.as_mut_ptr(),
+        )
+    };
+    status_to_result(status)
+}
+
+/// Write a general (non-1-to-1) zone interface connection.
+#[allow(clippy::too_many_arguments)]
+pub fn conn_write(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    location: u32,
+    connect_type: u32,
+    ptset_type: u32,
+    npnts: i64,
+    pnts: &[i64],
+    donor_name: &str,
+    donor_zonetype: u32,
+    donor_ptset_type: u32,
+    donor_datatype: u32,
+    ndata_donor: i64,
+    donor_data: &[i64],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid name: {}", e))?;
+    let c_donor =
+        std::ffi::CString::new(donor_name).map_err(|e| format!("invalid donor name: {}", e))?;
+    let mut idx: i32 = 0;
+    let status = unsafe {
+        cg_conn_write(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            location,
+            connect_type,
+            ptset_type,
+            npnts,
+            pnts.as_ptr(),
+            c_donor.as_ptr(),
+            donor_zonetype,
+            donor_ptset_type,
+            donor_datatype,
+            ndata_donor,
+            donor_data.as_ptr(),
+            &mut idx,
+        )
+    };
+    status_to_result(status).map(|_| idx)
+}
+
 /// Return the number of families in a base.
 pub fn nfamilies(fn_: i32, base: i32) -> Result<i32, String> {
     let _guard = lock_cgns();
@@ -477,11 +598,56 @@ pub fn family_read(fn_: i32, base: i32, family: i32, name: &mut [u8]) -> Result<
     status_to_result(status)
 }
 
+/// Return the number of bases in a file.
+pub fn nbases(fn_: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nbases(fn_, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
 /// Close a CGNS file.
 pub fn close(fn_: i32) -> Result<(), String> {
     let _guard = lock_cgns();
     let status = unsafe { cg_close(fn_) };
     status_to_result(status)
+}
+
+/// Read a CGNS base node (name, cell dimension, physical dimension).
+pub fn base_read(
+    fn_: i32,
+    base: i32,
+    name: &mut [u8],
+    cell_dim: &mut i32,
+    phys_dim: &mut i32,
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_base_read(
+            fn_,
+            base,
+            name.as_mut_ptr() as *mut i8,
+            cell_dim as *mut i32,
+            phys_dim as *mut i32,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Return the number of zones in a base.
+pub fn nzones(fn_: i32, base: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nzones(fn_, base, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Return the cell dimension of a base.
+pub fn cell_dim(fn_: i32, base: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut dim: i32 = 0;
+    let status = unsafe { cg_cell_dim(fn_, base, &mut dim) };
+    status_to_result(status).map(|_| dim)
 }
 
 /// Write a CGNS base node.
@@ -589,6 +755,38 @@ pub fn elements_read(
     status_to_result(status)
 }
 
+/// Read a section's metadata.
+#[allow(clippy::too_many_arguments)]
+pub fn section_read(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    section: i32,
+    name: &mut [u8],
+    elem_type: &mut u32,
+    start: &mut i64,
+    end: &mut i64,
+    nbound: &mut i32,
+    parent_flag: &mut i32,
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_section_read(
+            fn_,
+            base,
+            zone,
+            section,
+            name.as_mut_ptr() as *mut i8,
+            elem_type as *mut u32,
+            start as *mut i64,
+            end as *mut i64,
+            nbound as *mut i32,
+            parent_flag as *mut i32,
+        )
+    };
+    status_to_result(status)
+}
+
 /// Write an unstructured zone.
 ///
 /// `size` must have 3 entries: `[num_vertices, num_elements, 0]`.
@@ -612,6 +810,77 @@ pub fn zone_write_unstructured(
         )
     };
     status_to_result(status).map(|_| zone)
+}
+
+/// Read a zone's name and size.
+///
+/// `size` must be pre-allocated to the correct length (3 for structured,
+/// as returned by [`index_dim`]).
+pub fn zone_read(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &mut [u8],
+    size: &mut [i64],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_zone_read(
+            fn_,
+            base,
+            zone,
+            name.as_mut_ptr() as *mut i8,
+            size.as_mut_ptr(),
+        )
+    };
+    status_to_result(status)
+}
+
+/// Return the index dimension of a zone.
+pub fn index_dim(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut dim: i32 = 0;
+    let status = unsafe { cg_index_dim(fn_, base, zone, &mut dim) };
+    status_to_result(status).map(|_| dim)
+}
+
+/// Return the zone type.
+pub fn zone_type(fn_: i32, base: i32, zone: i32) -> Result<u32, String> {
+    let _guard = lock_cgns();
+    let mut ztype: u32 = 0;
+    let status = unsafe { cg_zone_type(fn_, base, zone, &mut ztype) };
+    status_to_result(status).map(|_| ztype)
+}
+
+/// Return the number of coordinates in a zone.
+pub fn ncoords(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_ncoords(fn_, base, zone, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Read coordinate information (data type and name) for a coordinate index.
+pub fn coord_info(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    coord: i32,
+    data_type: &mut u32,
+    name: &mut [u8],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_coord_info(
+            fn_,
+            base,
+            zone,
+            coord,
+            data_type as *mut u32,
+            name.as_mut_ptr() as *mut i8,
+        )
+    };
+    status_to_result(status)
 }
 
 /// Write grid coordinates for a structured zone.
@@ -644,6 +913,84 @@ pub fn coord_write(
     status_to_result(status).map(|_| coord_idx)
 }
 
+/// Write grid coordinates (f32).
+pub fn coord_write_f32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    data: &[f32],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let mut coord_idx: i32 = 0;
+    let status = unsafe {
+        cg_coord_write(
+            fn_,
+            base,
+            zone,
+            DataType_t_RealSingle,
+            c_name.as_ptr(),
+            data.as_ptr() as *const std::ffi::c_void,
+            &mut coord_idx,
+        )
+    };
+    status_to_result(status).map(|_| coord_idx)
+}
+
+/// Write grid coordinates (i32).
+pub fn coord_write_i32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    data: &[i32],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let mut coord_idx: i32 = 0;
+    let status = unsafe {
+        cg_coord_write(
+            fn_,
+            base,
+            zone,
+            DataType_t_Integer,
+            c_name.as_ptr(),
+            data.as_ptr() as *const std::ffi::c_void,
+            &mut coord_idx,
+        )
+    };
+    status_to_result(status).map(|_| coord_idx)
+}
+
+/// Write grid coordinates (i64).
+pub fn coord_write_i64(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    data: &[i64],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let mut coord_idx: i32 = 0;
+    let status = unsafe {
+        cg_coord_write(
+            fn_,
+            base,
+            zone,
+            DataType_t_LongInteger,
+            c_name.as_ptr(),
+            data.as_ptr() as *const std::ffi::c_void,
+            &mut coord_idx,
+        )
+    };
+    status_to_result(status).map(|_| coord_idx)
+}
+
 /// Write a solution node.
 pub fn sol_write(fn_: i32, base: i32, zone: i32, name: &str, location: u32) -> Result<i32, String> {
     let _guard = lock_cgns();
@@ -652,6 +999,70 @@ pub fn sol_write(fn_: i32, base: i32, zone: i32, name: &str, location: u32) -> R
     let mut sol: i32 = 0;
     let status = unsafe { cg_sol_write(fn_, base, zone, c_name.as_ptr(), location, &mut sol) };
     status_to_result(status).map(|_| sol)
+}
+
+/// Return the number of solutions in a zone.
+pub fn nsols(fn_: i32, base: i32, zone: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nsols(fn_, base, zone, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Read solution info.
+pub fn sol_info(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    name: &mut [u8],
+    location: &mut u32,
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_sol_info(
+            fn_,
+            base,
+            zone,
+            sol,
+            name.as_mut_ptr() as *mut i8,
+            location as *mut u32,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Return the number of fields in a solution.
+pub fn nfields(fn_: i32, base: i32, zone: i32, sol: i32) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let mut n: i32 = 0;
+    let status = unsafe { cg_nfields(fn_, base, zone, sol, &mut n) };
+    status_to_result(status).map(|_| n)
+}
+
+/// Read field info (data type and name).
+pub fn field_info(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    field: i32,
+    data_type: &mut u32,
+    name: &mut [u8],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let status = unsafe {
+        cg_field_info(
+            fn_,
+            base,
+            zone,
+            sol,
+            field,
+            data_type as *mut u32,
+            name.as_mut_ptr() as *mut i8,
+        )
+    };
+    status_to_result(status)
 }
 
 /// Write a flow solution field.
@@ -674,6 +1085,87 @@ pub fn field_write(
             zone,
             sol,
             data_type,
+            c_name.as_ptr(),
+            data.as_ptr() as *const std::ffi::c_void,
+            &mut field,
+        )
+    };
+    status_to_result(status).map(|_| field)
+}
+
+/// Write a flow solution field (f32).
+pub fn field_write_f32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    name: &str,
+    data: &[f32],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
+    let mut field: i32 = 0;
+    let status = unsafe {
+        cg_field_write(
+            fn_,
+            base,
+            zone,
+            sol,
+            DataType_t_RealSingle,
+            c_name.as_ptr(),
+            data.as_ptr() as *const std::ffi::c_void,
+            &mut field,
+        )
+    };
+    status_to_result(status).map(|_| field)
+}
+
+/// Write a flow solution field (i32).
+pub fn field_write_i32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    name: &str,
+    data: &[i32],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
+    let mut field: i32 = 0;
+    let status = unsafe {
+        cg_field_write(
+            fn_,
+            base,
+            zone,
+            sol,
+            DataType_t_Integer,
+            c_name.as_ptr(),
+            data.as_ptr() as *const std::ffi::c_void,
+            &mut field,
+        )
+    };
+    status_to_result(status).map(|_| field)
+}
+
+/// Write a flow solution field (i64).
+pub fn field_write_i64(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    name: &str,
+    data: &[i64],
+) -> Result<i32, String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
+    let mut field: i32 = 0;
+    let status = unsafe {
+        cg_field_write(
+            fn_,
+            base,
+            zone,
+            sol,
+            DataType_t_LongInteger,
             c_name.as_ptr(),
             data.as_ptr() as *const std::ffi::c_void,
             &mut field,
@@ -716,6 +1208,93 @@ pub fn coord_read(
     status_to_result(status)
 }
 
+/// Read grid coordinates (f32).
+#[allow(clippy::too_many_arguments)]
+pub fn coord_read_f32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    rmin: &[i64],
+    rmax: &[i64],
+    data: &mut [f32],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let status = unsafe {
+        cg_coord_read(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            DataType_t_RealSingle,
+            rmin.as_ptr(),
+            rmax.as_ptr(),
+            data.as_mut_ptr() as *mut std::ffi::c_void,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Read grid coordinates (i32).
+#[allow(clippy::too_many_arguments)]
+pub fn coord_read_i32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    rmin: &[i64],
+    rmax: &[i64],
+    data: &mut [i32],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let status = unsafe {
+        cg_coord_read(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            DataType_t_Integer,
+            rmin.as_ptr(),
+            rmax.as_ptr(),
+            data.as_mut_ptr() as *mut std::ffi::c_void,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Read grid coordinates (i64).
+#[allow(clippy::too_many_arguments)]
+pub fn coord_read_i64(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    name: &str,
+    rmin: &[i64],
+    rmax: &[i64],
+    data: &mut [i64],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let c_name =
+        std::ffi::CString::new(name).map_err(|e| format!("invalid coordinate name: {}", e))?;
+    let status = unsafe {
+        cg_coord_read(
+            fn_,
+            base,
+            zone,
+            c_name.as_ptr(),
+            DataType_t_LongInteger,
+            rmin.as_ptr(),
+            rmax.as_ptr(),
+            data.as_mut_ptr() as *mut std::ffi::c_void,
+        )
+    };
+    status_to_result(status)
+}
+
 /// Read a flow solution field.
 #[allow(clippy::too_many_arguments)]
 pub fn field_read(
@@ -739,6 +1318,96 @@ pub fn field_read(
             sol,
             c_name.as_ptr(),
             data_type,
+            rmin.as_ptr(),
+            rmax.as_ptr(),
+            data.as_mut_ptr() as *mut std::ffi::c_void,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Read a flow solution field (f32).
+#[allow(clippy::too_many_arguments)]
+pub fn field_read_f32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    name: &str,
+    rmin: &[i64],
+    rmax: &[i64],
+    data: &mut [f32],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
+    let status = unsafe {
+        cg_field_read(
+            fn_,
+            base,
+            zone,
+            sol,
+            c_name.as_ptr(),
+            DataType_t_RealSingle,
+            rmin.as_ptr(),
+            rmax.as_ptr(),
+            data.as_mut_ptr() as *mut std::ffi::c_void,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Read a flow solution field (i32).
+#[allow(clippy::too_many_arguments)]
+pub fn field_read_i32(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    name: &str,
+    rmin: &[i64],
+    rmax: &[i64],
+    data: &mut [i32],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
+    let status = unsafe {
+        cg_field_read(
+            fn_,
+            base,
+            zone,
+            sol,
+            c_name.as_ptr(),
+            DataType_t_Integer,
+            rmin.as_ptr(),
+            rmax.as_ptr(),
+            data.as_mut_ptr() as *mut std::ffi::c_void,
+        )
+    };
+    status_to_result(status)
+}
+
+/// Read a flow solution field (i64).
+#[allow(clippy::too_many_arguments)]
+pub fn field_read_i64(
+    fn_: i32,
+    base: i32,
+    zone: i32,
+    sol: i32,
+    name: &str,
+    rmin: &[i64],
+    rmax: &[i64],
+    data: &mut [i64],
+) -> Result<(), String> {
+    let _guard = lock_cgns();
+    let c_name = std::ffi::CString::new(name).map_err(|e| format!("invalid field name: {}", e))?;
+    let status = unsafe {
+        cg_field_read(
+            fn_,
+            base,
+            zone,
+            sol,
+            c_name.as_ptr(),
+            DataType_t_LongInteger,
             rmin.as_ptr(),
             rmax.as_ptr(),
             data.as_mut_ptr() as *mut std::ffi::c_void,

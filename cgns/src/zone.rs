@@ -54,51 +54,37 @@ impl Zone {
     /// Return the index dimension of this zone.
     /// For structured zones this is 1, 2, or 3. For unstructured zones it is 1.
     pub fn index_dim(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut dim: i32 = 0;
-        let status =
-            unsafe { cgns_sys::cg_index_dim(self.file_fn, self.base_index, self.index, &mut dim) };
-        check_sys_status(status)?;
-        Ok(dim)
+        cgns_sys::index_dim(self.file_fn, self.base_index, self.index)
+            .map_err(crate::error::CgnsError::Invalid)
     }
 
     pub fn zone_type(&self) -> CgnsResult<ZoneType> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut raw: u32 = 0;
-        let status =
-            unsafe { cgns_sys::cg_zone_type(self.file_fn, self.base_index, self.index, &mut raw) };
-        check_sys_status(status)?;
+        let raw = cgns_sys::zone_type(self.file_fn, self.base_index, self.index)
+            .map_err(crate::error::CgnsError::Invalid)?;
         ZoneType::from_raw(raw)
             .ok_or_else(|| crate::error::CgnsError::Invalid("unknown zone type".into()))
     }
 
     pub fn coord_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut n: i32 = 0;
-        let status =
-            unsafe { cgns_sys::cg_ncoords(self.file_fn, self.base_index, self.index, &mut n) };
-        check_sys_status(status)?;
-        Ok(n)
+        cgns_sys::ncoords(self.file_fn, self.base_index, self.index)
+            .map_err(crate::error::CgnsError::Invalid)
     }
 
     pub fn coord_names(&self) -> CgnsResult<Vec<String>> {
         let n = self.coord_count()?;
         let mut names = Vec::with_capacity(n as usize);
-        let _guard = cgns_sys::lock_cgns();
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut data_type: u32 = 0;
-            let status = unsafe {
-                cgns_sys::cg_coord_info(
-                    self.file_fn,
-                    self.base_index,
-                    self.index,
-                    i,
-                    &mut data_type,
-                    buf.as_mut_ptr() as *mut i8,
-                )
-            };
-            check_sys_status(status)?;
+            cgns_sys::coord_info(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                i,
+                &mut data_type,
+                &mut buf,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             names.push(
                 std::str::from_utf8(&buf[..end])
@@ -182,21 +168,16 @@ impl Zone {
     ) -> CgnsResult<Vec<f32>> {
         let n = Self::read_ranges_size(rmin, rmax);
         let mut data = vec![0.0f32; n];
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_coord_read(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                c_name.as_ptr(),
-                cgns_sys::DataType_t_RealSingle,
-                rmin.as_ptr(),
-                rmax.as_ptr(),
-                data.as_mut_ptr() as *mut std::ffi::c_void,
-            ))?;
-        }
+        cgns_sys::coord_read_f32(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            &mut data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
 
@@ -209,21 +190,16 @@ impl Zone {
     ) -> CgnsResult<Vec<i32>> {
         let n = Self::read_ranges_size(rmin, rmax);
         let mut data = vec![0i32; n];
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_coord_read(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                c_name.as_ptr(),
-                cgns_sys::DataType_t_Integer,
-                rmin.as_ptr(),
-                rmax.as_ptr(),
-                data.as_mut_ptr() as *mut std::ffi::c_void,
-            ))?;
-        }
+        cgns_sys::coord_read_i32(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            &mut data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
 
@@ -236,31 +212,22 @@ impl Zone {
     ) -> CgnsResult<Vec<i64>> {
         let n = Self::read_ranges_size(rmin, rmax);
         let mut data = vec![0i64; n];
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_coord_read(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                c_name.as_ptr(),
-                cgns_sys::DataType_t_LongInteger,
-                rmin.as_ptr(),
-                rmax.as_ptr(),
-                data.as_mut_ptr() as *mut std::ffi::c_void,
-            ))?;
-        }
+        cgns_sys::coord_read_i64(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            &mut data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
 
     pub fn solution_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut n: i32 = 0;
-        let status =
-            unsafe { cgns_sys::cg_nsols(self.file_fn, self.base_index, self.index, &mut n) };
-        check_sys_status(status)?;
-        Ok(n)
+        cgns_sys::nsols(self.file_fn, self.base_index, self.index)
+            .map_err(crate::error::CgnsError::Invalid)
     }
 
     pub fn write_solution(
@@ -285,21 +252,18 @@ impl Zone {
 
     pub fn solution(&self, name: &str) -> CgnsResult<Solution> {
         let n = self.solution_count()?;
-        let _guard = cgns_sys::lock_cgns();
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut location: u32 = 0;
-            let status = unsafe {
-                cgns_sys::cg_sol_info(
-                    self.file_fn,
-                    self.base_index,
-                    self.index,
-                    i,
-                    buf.as_mut_ptr() as *mut i8,
-                    &mut location,
-                )
-            };
-            check_sys_status(status)?;
+            cgns_sys::sol_info(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                i,
+                &mut buf,
+                &mut location,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             let found = std::str::from_utf8(&buf[..end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
@@ -363,7 +327,6 @@ impl Zone {
     /// Returns `NotFound` if no section with that name exists.
     pub fn section(&self, name: &str) -> CgnsResult<Section> {
         let n = self.section_count()?;
-        let _guard = cgns_sys::lock_cgns();
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut elem_type: u32 = 0;
@@ -371,23 +334,21 @@ impl Zone {
             let mut end: i64 = 0;
             let mut nbndry: i32 = 0;
             let mut parent_flag: i32 = 0;
-            let status = unsafe {
-                cgns_sys::cg_section_read(
-                    self.file_fn,
-                    self.base_index,
-                    self.index,
-                    i,
-                    buf.as_mut_ptr() as *mut i8,
-                    &mut elem_type,
-                    &mut start,
-                    &mut end,
-                    &mut nbndry,
-                    &mut parent_flag,
-                )
-            };
-            check_sys_status(status)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let found = std::str::from_utf8(&buf[..end])
+            cgns_sys::section_read(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                i,
+                &mut buf,
+                &mut elem_type,
+                &mut start,
+                &mut end,
+                &mut nbndry,
+                &mut parent_flag,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
+            let name_end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+            let found = std::str::from_utf8(&buf[..name_end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
             if found == name {
                 return Ok(Section {
@@ -565,18 +526,13 @@ impl Zone {
 
     /// Return the number of general (non-1-to-1) zone interface connections.
     pub fn nconns(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut n: i32 = 0;
-        let status =
-            unsafe { cgns_sys::cg_nconns(self.file_fn, self.base_index, self.index, &mut n) };
-        check_sys_status(status)?;
-        Ok(n)
+        cgns_sys::nconns(self.file_fn, self.base_index, self.index)
+            .map_err(crate::error::CgnsError::Invalid)
     }
 
     /// Find a general connection by name.
     pub fn conn(&self, name: &str) -> CgnsResult<GeneralConnectivity> {
         let n = self.nconns()?;
-        let _guard = cgns_sys::lock_cgns();
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut location: u32 = 0;
@@ -588,25 +544,23 @@ impl Zone {
             let mut donor_ptset_type: u32 = 0;
             let mut donor_datatype: u32 = 0;
             let mut ndata_donor: i64 = 0;
-            let status = unsafe {
-                cgns_sys::cg_conn_info(
-                    self.file_fn,
-                    self.base_index,
-                    self.index,
-                    i,
-                    buf.as_mut_ptr() as *mut i8,
-                    &mut location,
-                    &mut connect_type,
-                    &mut ptset_type,
-                    &mut npnts,
-                    donor_buf.as_mut_ptr() as *mut i8,
-                    &mut donor_zonetype,
-                    &mut donor_ptset_type,
-                    &mut donor_datatype,
-                    &mut ndata_donor,
-                )
-            };
-            check_sys_status(status)?;
+            cgns_sys::conn_info(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                i,
+                &mut buf,
+                &mut location,
+                &mut connect_type,
+                &mut ptset_type,
+                &mut npnts,
+                &mut donor_buf,
+                &mut donor_zonetype,
+                &mut donor_ptset_type,
+                &mut donor_datatype,
+                &mut ndata_donor,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             let found = std::str::from_utf8(&buf[..end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
@@ -660,33 +614,24 @@ impl Zone {
         ndata_donor: i64,
         donor_data: &[i64],
     ) -> CgnsResult<GeneralConnectivity> {
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        let c_donor = std::ffi::CString::new(donor_name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        let mut idx: i32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_conn_write(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                c_name.as_ptr(),
-                location.to_raw(),
-                connection_type.to_raw(),
-                point_set_type.to_raw(),
-                npnts,
-                points.as_ptr(),
-                c_donor.as_ptr(),
-                donor_zone_type.to_raw(),
-                donor_point_set_type.to_raw(),
-                cgns_sys::DataType_t_LongInteger,
-                ndata_donor,
-                donor_data.as_ptr(),
-                &mut idx,
-            )
-        };
-        check_sys_status(status)?;
+        let idx = cgns_sys::conn_write(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            location.to_raw(),
+            connection_type.to_raw(),
+            point_set_type.to_raw(),
+            npnts,
+            points,
+            donor_name,
+            donor_zone_type.to_raw(),
+            donor_point_set_type.to_raw(),
+            cgns_sys::DataType_t_LongInteger,
+            ndata_donor,
+            donor_data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(GeneralConnectivity {
             file_fn: self.file_fn,
             base_index: self.base_index,
@@ -697,85 +642,51 @@ impl Zone {
 
     /// Write grid coordinates with arbitrary data type.
     pub fn write_coord_f32(&self, name: &str, data: &[f32]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        let mut coord_idx: i32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_coord_write(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                cgns_sys::DataType_t_RealSingle,
-                c_name.as_ptr(),
-                data.as_ptr() as *const std::ffi::c_void,
-                &mut coord_idx,
-            )
-        };
-        check_sys_status(status)
+        cgns_sys::coord_write_f32(self.file_fn, self.base_index, self.index, name, data)
+            .map_err(crate::error::CgnsError::Invalid)?;
+        Ok(())
     }
 
     /// Write a flow solution field (32-bit float).
     pub fn write_field_f32(&self, sol: &Solution, name: &str, data: &[f32]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        let mut field: i32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_field_write(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                sol.index,
-                cgns_sys::DataType_t_RealSingle,
-                c_name.as_ptr(),
-                data.as_ptr() as *const std::ffi::c_void,
-                &mut field,
-            )
-        };
-        check_sys_status(status)
+        cgns_sys::field_write_f32(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            sol.index,
+            name,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
+        Ok(())
     }
 
     /// Write a flow solution field (32-bit integer).
     pub fn write_field_i32(&self, sol: &Solution, name: &str, data: &[i32]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        let mut field: i32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_field_write(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                sol.index,
-                cgns_sys::DataType_t_Integer,
-                c_name.as_ptr(),
-                data.as_ptr() as *const std::ffi::c_void,
-                &mut field,
-            )
-        };
-        check_sys_status(status)
+        cgns_sys::field_write_i32(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            sol.index,
+            name,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
+        Ok(())
     }
 
     /// Write a flow solution field (64-bit integer).
     pub fn write_field_i64(&self, sol: &Solution, name: &str, data: &[i64]) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        let mut field: i32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_field_write(
-                self.file_fn,
-                self.base_index,
-                self.index,
-                sol.index,
-                cgns_sys::DataType_t_LongInteger,
-                c_name.as_ptr(),
-                data.as_ptr() as *const std::ffi::c_void,
-                &mut field,
-            )
-        };
-        check_sys_status(status)
+        cgns_sys::field_write_i64(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            sol.index,
+            name,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
+        Ok(())
     }
 }
 
@@ -817,20 +728,17 @@ impl Solution {
 
     /// Read solution metadata (name and grid location).
     pub fn info(&self) -> CgnsResult<SolutionInfo> {
-        let _guard = cgns_sys::lock_cgns();
         let mut buf = vec![0u8; 64];
         let mut location: u32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_sol_info(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                buf.as_mut_ptr() as *mut i8,
-                &mut location,
-            )
-        };
-        check_sys_status(status)?;
+        cgns_sys::sol_info(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            &mut buf,
+            &mut location,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
         let name = std::str::from_utf8(&buf[..end])
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
@@ -844,22 +752,19 @@ impl Solution {
     pub fn field_names(&self) -> CgnsResult<Vec<String>> {
         let n = self.field_count()?;
         let mut names = Vec::with_capacity(n as usize);
-        let _guard = cgns_sys::lock_cgns();
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut data_type: u32 = 0;
-            let status = unsafe {
-                cgns_sys::cg_field_info(
-                    self.file_fn,
-                    self.base_index,
-                    self.zone_index,
-                    self.index,
-                    i,
-                    &mut data_type,
-                    buf.as_mut_ptr() as *mut i8,
-                )
-            };
-            check_sys_status(status)?;
+            cgns_sys::field_info(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                i,
+                &mut data_type,
+                &mut buf,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             names.push(
                 std::str::from_utf8(&buf[..end])
@@ -874,22 +779,19 @@ impl Solution {
     pub fn field_info_list(&self) -> CgnsResult<Vec<FieldInfo>> {
         let n = self.field_count()?;
         let mut infos = Vec::with_capacity(n as usize);
-        let _guard = cgns_sys::lock_cgns();
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             let mut data_type: u32 = 0;
-            let status = unsafe {
-                cgns_sys::cg_field_info(
-                    self.file_fn,
-                    self.base_index,
-                    self.zone_index,
-                    self.index,
-                    i,
-                    &mut data_type,
-                    buf.as_mut_ptr() as *mut i8,
-                )
-            };
-            check_sys_status(status)?;
+            cgns_sys::field_info(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                i,
+                &mut data_type,
+                &mut buf,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             let name = std::str::from_utf8(&buf[..end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
@@ -902,19 +804,8 @@ impl Solution {
     }
 
     pub fn field_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut n: i32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_nfields(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                &mut n,
-            )
-        };
-        check_sys_status(status)?;
-        Ok(n)
+        cgns_sys::nfields(self.file_fn, self.base_index, self.zone_index, self.index)
+            .map_err(crate::error::CgnsError::Invalid)
     }
 
     /// Write a 64-bit float field variable.
@@ -988,22 +879,17 @@ impl Solution {
     ) -> CgnsResult<Vec<f32>> {
         let n = Self::read_field_range_size(rmin, rmax);
         let mut data = vec![0.0f32; n];
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_field_read(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                c_name.as_ptr(),
-                cgns_sys::DataType_t_RealSingle,
-                rmin.as_ptr(),
-                rmax.as_ptr(),
-                data.as_mut_ptr() as *mut std::ffi::c_void,
-            ))?;
-        }
+        cgns_sys::field_read_f32(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            &mut data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
 
@@ -1016,22 +902,17 @@ impl Solution {
     ) -> CgnsResult<Vec<i32>> {
         let n = Self::read_field_range_size(rmin, rmax);
         let mut data = vec![0i32; n];
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_field_read(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                c_name.as_ptr(),
-                cgns_sys::DataType_t_Integer,
-                rmin.as_ptr(),
-                rmax.as_ptr(),
-                data.as_mut_ptr() as *mut std::ffi::c_void,
-            ))?;
-        }
+        cgns_sys::field_read_i32(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            &mut data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
 
@@ -1044,22 +925,17 @@ impl Solution {
     ) -> CgnsResult<Vec<i64>> {
         let n = Self::read_field_range_size(rmin, rmax);
         let mut data = vec![0i64; n];
-        let _guard = cgns_sys::lock_cgns();
-        let c_name = std::ffi::CString::new(name)
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_field_read(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                c_name.as_ptr(),
-                cgns_sys::DataType_t_LongInteger,
-                rmin.as_ptr(),
-                rmax.as_ptr(),
-                data.as_mut_ptr() as *mut std::ffi::c_void,
-            ))?;
-        }
+        cgns_sys::field_read_i64(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            &mut data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
 }

@@ -1,5 +1,5 @@
 use crate::data::ElementType;
-use crate::error::{check_sys_status, CgnsResult};
+use crate::error::CgnsResult;
 
 /// An opaque handle to a section (element group) in an unstructured zone.
 ///
@@ -41,28 +41,25 @@ impl Section {
 
     /// Read the section metadata (name, element type, element range, etc.).
     pub fn info(&self) -> CgnsResult<SectionInfo> {
-        let _guard = cgns_sys::lock_cgns();
         let mut buf = vec![0u8; 64];
         let mut elem_type: u32 = 0;
         let mut start: i64 = 0;
         let mut end: i64 = 0;
         let mut nbndry: i32 = 0;
         let mut parent_flag: i32 = 0;
-        let status = unsafe {
-            cgns_sys::cg_section_read(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                buf.as_mut_ptr() as *mut i8,
-                &mut elem_type as *mut u32,
-                &mut start as *mut i64,
-                &mut end as *mut i64,
-                &mut nbndry,
-                &mut parent_flag,
-            )
-        };
-        check_sys_status(status)?;
+        cgns_sys::section_read(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            &mut buf,
+            &mut elem_type,
+            &mut start,
+            &mut end,
+            &mut nbndry,
+            &mut parent_flag,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         let name_end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
         let name = std::str::from_utf8(&buf[..name_end])
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
@@ -81,30 +78,18 @@ impl Section {
     /// The returned vector contains the raw CGNS connectivity data.  See the
     /// [struct-level docs](Section#connectivity-layout) for the layout.
     pub fn read_connectivity(&self) -> CgnsResult<Vec<i64>> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut size: i64 = 0;
-        let status = unsafe {
-            cgns_sys::cg_ElementDataSize(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                &mut size,
-            )
-        };
-        check_sys_status(status)?;
+        let size =
+            cgns_sys::element_data_size(self.file_fn, self.base_index, self.zone_index, self.index)
+                .map_err(crate::error::CgnsError::Invalid)?;
         let mut elements = vec![0i64; size as usize];
-        let status = unsafe {
-            cgns_sys::cg_elements_read(
-                self.file_fn,
-                self.base_index,
-                self.zone_index,
-                self.index,
-                elements.as_mut_ptr(),
-                std::ptr::null_mut(),
-            )
-        };
-        check_sys_status(status)?;
+        cgns_sys::elements_read(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            &mut elements,
+        )
+        .map_err(crate::error::CgnsError::Invalid)?;
         Ok(elements)
     }
 

@@ -1,5 +1,5 @@
 use crate::base::Base;
-use crate::error::{check_sys_status, CgnsResult};
+use crate::error::CgnsResult;
 
 pub struct CgnsFile {
     pub(crate) fn_: i32,
@@ -40,22 +40,12 @@ impl CgnsFile {
     }
 
     pub fn base(&self, name: &str) -> CgnsResult<Base> {
-        let n = self.base_count()?;
+        let n = cgns_sys::nbases(self.fn_)?;
         for i in 1..=n {
-            let _guard = cgns_sys::lock_cgns();
             let mut buf = vec![0u8; 64];
             let mut cell_dim: i32 = 0;
             let mut phys_dim: i32 = 0;
-            let status = unsafe {
-                cgns_sys::cg_base_read(
-                    self.fn_,
-                    i,
-                    buf.as_mut_ptr() as *mut i8,
-                    &mut cell_dim,
-                    &mut phys_dim,
-                )
-            };
-            check_sys_status(status)?;
+            cgns_sys::base_read(self.fn_, i, &mut buf, &mut cell_dim, &mut phys_dim)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             let found = std::str::from_utf8(&buf[..end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
@@ -74,31 +64,17 @@ impl CgnsFile {
     }
 
     pub fn base_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut n: i32 = 0;
-        let status = unsafe { cgns_sys::cg_nbases(self.fn_, &mut n) };
-        check_sys_status(status)?;
-        Ok(n)
+        cgns_sys::nbases(self.fn_).map_err(crate::error::CgnsError::from)
     }
 
     pub fn bases(&self) -> CgnsResult<Vec<Base>> {
-        let n = self.base_count()?;
+        let n = cgns_sys::nbases(self.fn_)?;
         let mut bases = Vec::with_capacity(n as usize);
         for i in 1..=n {
-            let _guard = cgns_sys::lock_cgns();
             let mut buf = vec![0u8; 64];
             let mut cell_dim: i32 = 0;
             let mut phys_dim: i32 = 0;
-            let status = unsafe {
-                cgns_sys::cg_base_read(
-                    self.fn_,
-                    i,
-                    buf.as_mut_ptr() as *mut i8,
-                    &mut cell_dim,
-                    &mut phys_dim,
-                )
-            };
-            check_sys_status(status)?;
+            cgns_sys::base_read(self.fn_, i, &mut buf, &mut cell_dim, &mut phys_dim)?;
             let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
             let name = std::str::from_utf8(&buf[..end])
                 .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;

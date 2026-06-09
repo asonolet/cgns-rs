@@ -2,7 +2,7 @@ use crate::data::{
     AngleUnits, DataClass, LengthUnits, MassUnits, SimulationType, TemperatureUnits, TimeUnits,
     UnitsSystem,
 };
-use crate::error::{check_sys_status, from_sys_result, CgnsResult};
+use crate::error::{check_sys_status, from_sys_result, CgnsError, CgnsResult};
 use crate::zone::Zone;
 
 pub struct Base {
@@ -60,11 +60,7 @@ impl Base {
     }
 
     pub fn zone_count(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut n: i32 = 0;
-        let status = unsafe { cgns_sys::cg_nzones(self.file_fn, self.index, &mut n) };
-        check_sys_status(status)?;
-        Ok(n)
+        cgns_sys::nzones(self.file_fn, self.index).map_err(CgnsError::from)
     }
 
     pub fn zones(&self) -> CgnsResult<Vec<Zone>> {
@@ -82,29 +78,22 @@ impl Base {
 
     /// Return the cell dimension of this base (2 for 2D, 3 for 3D).
     pub fn cell_dim(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
-        let mut cell_dim: i32 = 0;
-        let status = unsafe { cgns_sys::cg_cell_dim(self.file_fn, self.index, &mut cell_dim) };
-        check_sys_status(status)?;
-        Ok(cell_dim)
+        cgns_sys::cell_dim(self.file_fn, self.index).map_err(CgnsError::from)
     }
 
     /// Return the physical dimension of this base.
     pub fn phys_dim(&self) -> CgnsResult<i32> {
-        let _guard = cgns_sys::lock_cgns();
         let mut cell_dim: i32 = 0;
         let mut phys_dim: i32 = 0;
         let mut buf = vec![0u8; 64];
-        let status = unsafe {
-            cgns_sys::cg_base_read(
-                self.file_fn,
-                self.index,
-                buf.as_mut_ptr() as *mut i8,
-                &mut cell_dim,
-                &mut phys_dim,
-            )
-        };
-        check_sys_status(status)?;
+        cgns_sys::base_read(
+            self.file_fn,
+            self.index,
+            &mut buf,
+            &mut cell_dim,
+            &mut phys_dim,
+        )
+        .map_err(CgnsError::from)?;
         Ok(phys_dim)
     }
 
