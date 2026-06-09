@@ -55,6 +55,53 @@ macro_rules! impl_typed_field_write {
     };
 }
 
+macro_rules! impl_typed_coord_read {
+    ($method:ident, $sys_fn:ident, $ty:ty) => {
+        pub fn $method(
+            &self,
+            name: &str,
+            rmin: &[i64],
+            rmax: &[i64],
+            data: &mut [$ty],
+        ) -> CgnsResult<()> {
+            cgns_sys::$sys_fn(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                name,
+                rmin,
+                rmax,
+                data,
+            )
+            .map_err(crate::error::CgnsError::Invalid)
+        }
+    };
+}
+
+macro_rules! impl_typed_field_read {
+    ($method:ident, $sys_fn:ident, $ty:ty) => {
+        pub fn $method(
+            &self,
+            name: &str,
+            rmin: &[i64],
+            rmax: &[i64],
+            data: &mut [$ty],
+        ) -> CgnsResult<()> {
+            cgns_sys::$sys_fn(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                name,
+                rmin,
+                rmax,
+                data,
+            )
+            .map_err(crate::error::CgnsError::Invalid)
+        }
+    };
+}
+
 impl Zone {
     pub const fn index(&self) -> i32 {
         self.index
@@ -193,65 +240,9 @@ impl Zone {
         Ok(())
     }
 
-    /// Read a sub-range of 32-bit float coordinate data.
-    pub fn read_coord_f32(
-        &self,
-        name: &str,
-        rmin: &[i64],
-        rmax: &[i64],
-        data: &mut [f32],
-    ) -> CgnsResult<()> {
-        cgns_sys::coord_read_f32(
-            self.file_fn,
-            self.base_index,
-            self.index,
-            name,
-            rmin,
-            rmax,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)
-    }
-
-    /// Read a sub-range of 32-bit integer coordinate data.
-    pub fn read_coord_i32(
-        &self,
-        name: &str,
-        rmin: &[i64],
-        rmax: &[i64],
-        data: &mut [i32],
-    ) -> CgnsResult<()> {
-        cgns_sys::coord_read_i32(
-            self.file_fn,
-            self.base_index,
-            self.index,
-            name,
-            rmin,
-            rmax,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)
-    }
-
-    /// Read a sub-range of 64-bit integer coordinate data.
-    pub fn read_coord_i64(
-        &self,
-        name: &str,
-        rmin: &[i64],
-        rmax: &[i64],
-        data: &mut [i64],
-    ) -> CgnsResult<()> {
-        cgns_sys::coord_read_i64(
-            self.file_fn,
-            self.base_index,
-            self.index,
-            name,
-            rmin,
-            rmax,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)
-    }
+    impl_typed_coord_read!(read_coord_f32, coord_read_f32, f32);
+    impl_typed_coord_read!(read_coord_i32, coord_read_i32, i32);
+    impl_typed_coord_read!(read_coord_i64, coord_read_i64, i64);
 
     fn read_ranges_size(rmin: &[i64], rmax: &[i64]) -> usize {
         rmin.iter()
@@ -844,68 +835,9 @@ impl Solution {
         Ok(())
     }
 
-    /// Read a sub-range of 32-bit float field data.
-    pub fn read_field_f32(
-        &self,
-        name: &str,
-        rmin: &[i64],
-        rmax: &[i64],
-        data: &mut [f32],
-    ) -> CgnsResult<()> {
-        cgns_sys::field_read_f32(
-            self.file_fn,
-            self.base_index,
-            self.zone_index,
-            self.index,
-            name,
-            rmin,
-            rmax,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)
-    }
-
-    /// Read a sub-range of 32-bit integer field data.
-    pub fn read_field_i32(
-        &self,
-        name: &str,
-        rmin: &[i64],
-        rmax: &[i64],
-        data: &mut [i32],
-    ) -> CgnsResult<()> {
-        cgns_sys::field_read_i32(
-            self.file_fn,
-            self.base_index,
-            self.zone_index,
-            self.index,
-            name,
-            rmin,
-            rmax,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)
-    }
-
-    /// Read a sub-range of 64-bit integer field data.
-    pub fn read_field_i64(
-        &self,
-        name: &str,
-        rmin: &[i64],
-        rmax: &[i64],
-        data: &mut [i64],
-    ) -> CgnsResult<()> {
-        cgns_sys::field_read_i64(
-            self.file_fn,
-            self.base_index,
-            self.zone_index,
-            self.index,
-            name,
-            rmin,
-            rmax,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)
-    }
+    impl_typed_field_read!(read_field_f32, field_read_f32, f32);
+    impl_typed_field_read!(read_field_i32, field_read_i32, i32);
+    impl_typed_field_read!(read_field_i64, field_read_i64, i64);
 
     /// Read a field and return an owned `Vec<f64>`.
     pub fn read_field_f64_vec(
