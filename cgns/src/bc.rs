@@ -30,9 +30,7 @@ impl Bc {
             &mut ptset_type,
             &mut npnts,
         )?;
-        let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-        let name = std::str::from_utf8(&buf[..end])
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let name = crate::util::read_c_string(&buf)?;
         Ok(BcInfo {
             name: name.to_string(),
             bc_type: BcType::from_raw(bocotype).unwrap_or(BcType::Null),

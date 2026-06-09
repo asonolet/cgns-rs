@@ -46,9 +46,7 @@ impl CgnsFile {
             let mut cell_dim: i32 = 0;
             let mut phys_dim: i32 = 0;
             cgns_sys::base_read(self.fn_, i, &mut buf, &mut cell_dim, &mut phys_dim)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let found = std::str::from_utf8(&buf[..end])
-                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            let found = crate::util::read_c_string(&buf)?;
             if found == name {
                 return Ok(Base {
                     file_fn: self.fn_,
@@ -75,9 +73,7 @@ impl CgnsFile {
             let mut cell_dim: i32 = 0;
             let mut phys_dim: i32 = 0;
             cgns_sys::base_read(self.fn_, i, &mut buf, &mut cell_dim, &mut phys_dim)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let name = std::str::from_utf8(&buf[..end])
-                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            let name = crate::util::read_c_string(&buf)?;
             bases.push(Base {
                 file_fn: self.fn_,
                 index: i,

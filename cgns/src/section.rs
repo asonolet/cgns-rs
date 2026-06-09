@@ -60,9 +60,7 @@ impl Section {
             &mut parent_flag,
         )
         .map_err(crate::error::CgnsError::Invalid)?;
-        let name_end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-        let name = std::str::from_utf8(&buf[..name_end])
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let name = crate::util::read_c_string(&buf)?;
         Ok(SectionInfo {
             name: name.to_string(),
             element_type: ElementType::from_raw(elem_type).unwrap_or(ElementType::Null),

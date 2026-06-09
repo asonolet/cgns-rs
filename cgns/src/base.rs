@@ -97,13 +97,22 @@ impl Base {
         Ok(phys_dim)
     }
 
-    /// Write base units (Mass, Length, Time, Temperature, Angle).
-    pub fn write_units(&self, units: &UnitsSystem) -> CgnsResult<()> {
+    fn with_gopath<F, R>(&self, f: F) -> CgnsResult<R>
+    where
+        F: FnOnce() -> CgnsResult<R>,
+    {
         let _guard = cgns_sys::lock_cgns()?;
         let c_path = std::ffi::CString::new(format!("/{}", self.name))
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            .map_err(|e| CgnsError::Invalid(e.to_string()))?;
         unsafe {
             check_sys_status(cgns_sys::cg_gopath(self.file_fn, c_path.as_ptr()))?;
+            f()
+        }
+    }
+
+    /// Write base units (Mass, Length, Time, Temperature, Angle).
+    pub fn write_units(&self, units: &UnitsSystem) -> CgnsResult<()> {
+        self.with_gopath(|| unsafe {
             check_sys_status(cgns_sys::cg_units_write(
                 units.mass.to_raw(),
                 units.length.to_raw(),
@@ -111,16 +120,12 @@ impl Base {
                 units.temperature.to_raw(),
                 units.angle.to_raw(),
             ))
-        }
+        })
     }
 
     /// Read base units.
     pub fn read_units(&self) -> CgnsResult<UnitsSystem> {
-        let _guard = cgns_sys::lock_cgns()?;
-        let c_path = std::ffi::CString::new(format!("/{}", self.name))
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_gopath(self.file_fn, c_path.as_ptr()))?;
+        self.with_gopath(|| unsafe {
             let mut mass: u32 = 0;
             let mut length: u32 = 0;
             let mut time: u32 = 0;
@@ -141,31 +146,21 @@ impl Base {
                     .unwrap_or(TemperatureUnits::Null),
                 angle: AngleUnits::from_raw(angle).unwrap_or(AngleUnits::Null),
             })
-        }
+        })
     }
 
     /// Write the data class for this base.
     pub fn write_dataclass(&self, dc: DataClass) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns()?;
-        let c_path = std::ffi::CString::new(format!("/{}", self.name))
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_gopath(self.file_fn, c_path.as_ptr()))?;
-            check_sys_status(cgns_sys::cg_dataclass_write(dc.to_raw()))
-        }
+        self.with_gopath(|| unsafe { check_sys_status(cgns_sys::cg_dataclass_write(dc.to_raw())) })
     }
 
     /// Read the data class from this base.
     pub fn read_dataclass(&self) -> CgnsResult<DataClass> {
-        let _guard = cgns_sys::lock_cgns()?;
-        let c_path = std::ffi::CString::new(format!("/{}", self.name))
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
-        unsafe {
-            check_sys_status(cgns_sys::cg_gopath(self.file_fn, c_path.as_ptr()))?;
+        self.with_gopath(|| unsafe {
             let mut dc: u32 = 0;
             check_sys_status(cgns_sys::cg_dataclass_read(&mut dc))?;
             Ok(DataClass::from_raw(dc).unwrap_or(DataClass::Null))
-        }
+        })
     }
 
     /// Write the simulation type for this base.
@@ -198,12 +193,7 @@ impl Base {
         for i in 1..=n {
             let mut buf = vec![0u8; 64];
             cgns_sys::family_read(self.file_fn, self.index, i, &mut buf)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            names.push(
-                std::str::from_utf8(&buf[..end])
-                    .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?
-                    .to_string(),
-            );
+            names.push(crate::util::read_c_string(&buf)?.to_string());
         }
         Ok(names)
     }

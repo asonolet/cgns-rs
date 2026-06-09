@@ -106,8 +106,8 @@ impl GeneralConnectivity {
             &mut ndata_donor,
         )
         .map_err(CgnsError::Invalid)?;
-        let name = read_c_string(&name_buf);
-        let donor_name = read_c_string(&donor_buf);
+        let name = crate::util::read_c_string(&name_buf)?.to_string();
+        let donor_name = crate::util::read_c_string(&donor_buf)?.to_string();
         Ok(GeneralConnectivityInfo {
             name,
             location: GridLocation::from_raw(location)
@@ -155,13 +155,6 @@ impl GeneralConnectivity {
             donor_data,
         })
     }
-}
-
-fn read_c_string(buf: &[u8]) -> String {
-    let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-    std::str::from_utf8(&buf[..end])
-        .map(|s| s.to_string())
-        .unwrap_or_default()
 }
 
 /// Metadata describing a general (non-1-to-1) zone interface connection.

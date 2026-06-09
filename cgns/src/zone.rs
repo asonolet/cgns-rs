@@ -6,6 +6,24 @@ use crate::data::{
 use crate::error::{check_sys_status, from_sys_result, CgnsResult};
 use crate::section::Section;
 
+macro_rules! impl_list_method {
+    ($method:ident, $count_method:ident, $ty:ident) => {
+        pub fn $method(&self) -> CgnsResult<Vec<$ty>> {
+            let n = self.$count_method()?;
+            let mut items = Vec::with_capacity(n as usize);
+            for i in 1..=n {
+                items.push($ty {
+                    file_fn: self.file_fn,
+                    base_index: self.base_index,
+                    zone_index: self.index,
+                    index: i,
+                });
+            }
+            Ok(items)
+        }
+    };
+}
+
 /// An opaque handle to a zone (mesh block) within a CGNS base.
 ///
 /// A zone is either **structured** (ijk-ordered vertices) or **unstructured**
@@ -18,6 +36,23 @@ pub struct Zone {
     pub(crate) file_fn: i32,
     pub(crate) base_index: i32,
     pub(crate) index: i32,
+}
+
+macro_rules! impl_typed_field_write {
+    ($method:ident, $sys_fn:ident, $ty:ty) => {
+        pub fn $method(&self, sol: &Solution, name: &str, data: &[$ty]) -> CgnsResult<()> {
+            cgns_sys::$sys_fn(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                sol.index,
+                name,
+                data,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
+            Ok(())
+        }
+    };
 }
 
 impl Zone {
@@ -85,12 +120,7 @@ impl Zone {
                 &mut buf,
             )
             .map_err(crate::error::CgnsError::Invalid)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            names.push(
-                std::str::from_utf8(&buf[..end])
-                    .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?
-                    .to_string(),
-            );
+            names.push(crate::util::read_c_string(&buf)?.to_string());
         }
         Ok(names)
     }
@@ -264,9 +294,7 @@ impl Zone {
                 &mut location,
             )
             .map_err(crate::error::CgnsError::Invalid)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let found = std::str::from_utf8(&buf[..end])
-                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            let found = crate::util::read_c_string(&buf)?;
             if found == name {
                 return Ok(Solution {
                     file_fn: self.file_fn,
@@ -282,19 +310,7 @@ impl Zone {
         )))
     }
 
-    pub fn solutions(&self) -> CgnsResult<Vec<Solution>> {
-        let n = self.solution_count()?;
-        let mut sols = Vec::with_capacity(n as usize);
-        for i in 1..=n {
-            sols.push(Solution {
-                file_fn: self.file_fn,
-                base_index: self.base_index,
-                zone_index: self.index,
-                index: i,
-            });
-        }
-        Ok(sols)
-    }
+    impl_list_method!(solutions, solution_count, Solution);
 
     /// Return the number of sections (element groups) in this zone.
     pub fn section_count(&self) -> CgnsResult<i32> {
@@ -305,22 +321,7 @@ impl Zone {
         ))
     }
 
-    /// Return all sections in this zone.
-    ///
-    /// Sections are indexed 1-based from the CGNS file.
-    pub fn sections(&self) -> CgnsResult<Vec<Section>> {
-        let n = self.section_count()?;
-        let mut secs = Vec::with_capacity(n as usize);
-        for i in 1..=n {
-            secs.push(Section {
-                file_fn: self.file_fn,
-                base_index: self.base_index,
-                zone_index: self.index,
-                index: i,
-            });
-        }
-        Ok(secs)
-    }
+    impl_list_method!(sections, section_count, Section);
 
     /// Find a section by name.
     ///
@@ -347,9 +348,7 @@ impl Zone {
                 &mut parent_flag,
             )
             .map_err(crate::error::CgnsError::Invalid)?;
-            let name_end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let found = std::str::from_utf8(&buf[..name_end])
-                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            let found = crate::util::read_c_string(&buf)?;
             if found == name {
                 return Ok(Section {
                     file_fn: self.file_fn,
@@ -442,20 +441,7 @@ impl Zone {
         })
     }
 
-    /// Return all boundary conditions on this zone.
-    pub fn bcs(&self) -> CgnsResult<Vec<Bc>> {
-        let n = self.bc_count()?;
-        let mut bcs = Vec::with_capacity(n as usize);
-        for i in 1..=n {
-            bcs.push(Bc {
-                file_fn: self.file_fn,
-                base_index: self.base_index,
-                zone_index: self.index,
-                index: i,
-            });
-        }
-        Ok(bcs)
-    }
+    impl_list_method!(bcs, bc_count, Bc);
 
     /// Find a boundary condition by name.
     pub fn bc(&self, name: &str) -> CgnsResult<Bc> {
@@ -477,7 +463,6 @@ impl Zone {
         )))
     }
 
-    /// Return the number of 1-to-1 zone interfaces.
     pub fn n1to1(&self) -> CgnsResult<i32> {
         from_sys_result(cgns_sys::n1to1(self.file_fn, self.base_index, self.index))
     }
@@ -509,20 +494,7 @@ impl Zone {
         })
     }
 
-    /// Return all 1-to-1 zone interfaces.
-    pub fn one_to_ones(&self) -> CgnsResult<Vec<OneToOne>> {
-        let n = self.n1to1()?;
-        let mut conns = Vec::with_capacity(n as usize);
-        for i in 1..=n {
-            conns.push(OneToOne {
-                file_fn: self.file_fn,
-                base_index: self.base_index,
-                zone_index: self.index,
-                index: i,
-            });
-        }
-        Ok(conns)
-    }
+    impl_list_method!(one_to_ones, n1to1, OneToOne);
 
     /// Return the number of general (non-1-to-1) zone interface connections.
     pub fn nconns(&self) -> CgnsResult<i32> {
@@ -561,9 +533,7 @@ impl Zone {
                 &mut ndata_donor,
             )
             .map_err(crate::error::CgnsError::Invalid)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let found = std::str::from_utf8(&buf[..end])
-                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            let found = crate::util::read_c_string(&buf)?;
             if found == name {
                 return Ok(GeneralConnectivity {
                     file_fn: self.file_fn,
@@ -579,20 +549,7 @@ impl Zone {
         )))
     }
 
-    /// Return all general (non-1-to-1) zone interface connections.
-    pub fn general_connectivities(&self) -> CgnsResult<Vec<GeneralConnectivity>> {
-        let n = self.nconns()?;
-        let mut conns = Vec::with_capacity(n as usize);
-        for i in 1..=n {
-            conns.push(GeneralConnectivity {
-                file_fn: self.file_fn,
-                base_index: self.base_index,
-                zone_index: self.index,
-                index: i,
-            });
-        }
-        Ok(conns)
-    }
+    impl_list_method!(general_connectivities, nconns, GeneralConnectivity);
 
     /// Write a general (non-1-to-1) zone interface connection.
     ///
@@ -647,47 +604,9 @@ impl Zone {
         Ok(())
     }
 
-    /// Write a flow solution field (32-bit float).
-    pub fn write_field_f32(&self, sol: &Solution, name: &str, data: &[f32]) -> CgnsResult<()> {
-        cgns_sys::field_write_f32(
-            self.file_fn,
-            self.base_index,
-            self.index,
-            sol.index,
-            name,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)?;
-        Ok(())
-    }
-
-    /// Write a flow solution field (32-bit integer).
-    pub fn write_field_i32(&self, sol: &Solution, name: &str, data: &[i32]) -> CgnsResult<()> {
-        cgns_sys::field_write_i32(
-            self.file_fn,
-            self.base_index,
-            self.index,
-            sol.index,
-            name,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)?;
-        Ok(())
-    }
-
-    /// Write a flow solution field (64-bit integer).
-    pub fn write_field_i64(&self, sol: &Solution, name: &str, data: &[i64]) -> CgnsResult<()> {
-        cgns_sys::field_write_i64(
-            self.file_fn,
-            self.base_index,
-            self.index,
-            sol.index,
-            name,
-            data,
-        )
-        .map_err(crate::error::CgnsError::Invalid)?;
-        Ok(())
-    }
+    impl_typed_field_write!(write_field_f32, field_write_f32, f32);
+    impl_typed_field_write!(write_field_i32, field_write_i32, i32);
+    impl_typed_field_write!(write_field_i64, field_write_i64, i64);
 }
 
 /// An opaque handle to a solution node in a zone.
@@ -739,9 +658,7 @@ impl Solution {
             &mut location,
         )
         .map_err(crate::error::CgnsError::Invalid)?;
-        let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-        let name = std::str::from_utf8(&buf[..end])
-            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let name = crate::util::read_c_string(&buf)?;
         Ok(SolutionInfo {
             name: name.to_string(),
             location: GridLocation::from_raw(location).unwrap_or(GridLocation::Null),
@@ -765,12 +682,7 @@ impl Solution {
                 &mut buf,
             )
             .map_err(crate::error::CgnsError::Invalid)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            names.push(
-                std::str::from_utf8(&buf[..end])
-                    .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?
-                    .to_string(),
-            );
+            names.push(crate::util::read_c_string(&buf)?.to_string());
         }
         Ok(names)
     }
@@ -792,9 +704,7 @@ impl Solution {
                 &mut buf,
             )
             .map_err(crate::error::CgnsError::Invalid)?;
-            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-            let name = std::str::from_utf8(&buf[..end])
-                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            let name = crate::util::read_c_string(&buf)?;
             infos.push(FieldInfo {
                 name: name.to_string(),
                 data_type: DataType::from_raw(data_type).unwrap_or(DataType::R8),
@@ -850,13 +760,6 @@ impl Solution {
         Ok(())
     }
 
-    fn read_field_range_size(rmin: &[i64], rmax: &[i64]) -> usize {
-        rmin.iter()
-            .zip(rmax)
-            .map(|(&a, &b)| (b - a + 1) as usize)
-            .product()
-    }
-
     /// Read a field and return an owned `Vec<f64>`.
     pub fn read_field_f64_vec(
         &self,
@@ -864,7 +767,7 @@ impl Solution {
         rmin: &[i64],
         rmax: &[i64],
     ) -> CgnsResult<Vec<f64>> {
-        let n = Self::read_field_range_size(rmin, rmax);
+        let n = Zone::read_ranges_size(rmin, rmax);
         let mut data = vec![0.0; n];
         self.read_field_f64(name, rmin, rmax, &mut data)?;
         Ok(data)
@@ -877,7 +780,7 @@ impl Solution {
         rmin: &[i64],
         rmax: &[i64],
     ) -> CgnsResult<Vec<f32>> {
-        let n = Self::read_field_range_size(rmin, rmax);
+        let n = Zone::read_ranges_size(rmin, rmax);
         let mut data = vec![0.0f32; n];
         cgns_sys::field_read_f32(
             self.file_fn,
@@ -900,7 +803,7 @@ impl Solution {
         rmin: &[i64],
         rmax: &[i64],
     ) -> CgnsResult<Vec<i32>> {
-        let n = Self::read_field_range_size(rmin, rmax);
+        let n = Zone::read_ranges_size(rmin, rmax);
         let mut data = vec![0i32; n];
         cgns_sys::field_read_i32(
             self.file_fn,
@@ -923,7 +826,7 @@ impl Solution {
         rmin: &[i64],
         rmax: &[i64],
     ) -> CgnsResult<Vec<i64>> {
-        let n = Self::read_field_range_size(rmin, rmax);
+        let n = Zone::read_ranges_size(rmin, rmax);
         let mut data = vec![0i64; n];
         cgns_sys::field_read_i64(
             self.file_fn,
