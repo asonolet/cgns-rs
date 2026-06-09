@@ -686,21 +686,6 @@ impl Zone {
     impl_typed_coord_write!(write_coord_i32, coord_write_i32, i32);
     impl_typed_coord_write!(write_coord_i64, coord_write_i64, i64);
 
-    /// Write a 64-bit float field using the generic sys function
-    /// (no typed `field_write_f64` exists in the C API).
-    pub fn write_field_f64(&self, sol: &Solution, name: &str, data: &[f64]) -> CgnsResult<()> {
-        cgns_sys::field_write(
-            self.file_fn,
-            self.base_index,
-            self.index,
-            sol.index,
-            cgns_sys::DataType_t_RealDouble,
-            name,
-            data,
-        )?;
-        Ok(())
-    }
-
     impl_typed_field_write!(write_field_f32, field_write_f32, f32);
     impl_typed_field_write!(write_field_i32, field_write_i32, i32);
     impl_typed_field_write!(write_field_i64, field_write_i64, i64);
