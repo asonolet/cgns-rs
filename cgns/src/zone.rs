@@ -1,6 +1,6 @@
 use crate::bc::Bc;
 use crate::connectivity::OneToOne;
-use crate::data::{BcType, ElementType, PointSetType, ZoneType};
+use crate::data::{BcType, DataType, ElementType, GridLocation, PointSetType, ZoneType};
 use crate::error::{check_sys_status, from_sys_result, CgnsResult};
 use crate::section::Section;
 
@@ -557,9 +557,113 @@ pub struct Solution {
     pub(crate) index: i32,
 }
 
+/// Metadata describing a solution node.
+#[derive(Debug, Clone)]
+pub struct SolutionInfo {
+    /// The solution name (e.g. "FlowSolution").
+    pub name: String,
+    /// Where the solution data is stored (Vertex, CellCenter, etc.).
+    pub location: GridLocation,
+}
+
+/// Metadata describing a field variable.
+#[derive(Debug, Clone)]
+pub struct FieldInfo {
+    /// The field name (e.g. "Pressure", "Density").
+    pub name: String,
+    /// The data type of the field.
+    pub data_type: DataType,
+}
+
 impl Solution {
     pub const fn index(&self) -> i32 {
         self.index
+    }
+
+    /// Read solution metadata (name and grid location).
+    pub fn info(&self) -> CgnsResult<SolutionInfo> {
+        let _guard = cgns_sys::lock_cgns();
+        let mut buf = vec![0u8; 64];
+        let mut location: u32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_sol_info(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                buf.as_mut_ptr() as *mut i8,
+                &mut location,
+            )
+        };
+        check_sys_status(status)?;
+        let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+        let name = std::str::from_utf8(&buf[..end])
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        Ok(SolutionInfo {
+            name: name.to_string(),
+            location: GridLocation::from_raw(location).unwrap_or(GridLocation::Null),
+        })
+    }
+
+    /// Return the names of all field variables in this solution.
+    pub fn field_names(&self) -> CgnsResult<Vec<String>> {
+        let n = self.field_count()?;
+        let mut names = Vec::with_capacity(n as usize);
+        let _guard = cgns_sys::lock_cgns();
+        for i in 1..=n {
+            let mut buf = vec![0u8; 64];
+            let mut data_type: u32 = 0;
+            let status = unsafe {
+                cgns_sys::cg_field_info(
+                    self.file_fn,
+                    self.base_index,
+                    self.zone_index,
+                    self.index,
+                    i,
+                    &mut data_type,
+                    buf.as_mut_ptr() as *mut i8,
+                )
+            };
+            check_sys_status(status)?;
+            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+            names.push(
+                std::str::from_utf8(&buf[..end])
+                    .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?
+                    .to_string(),
+            );
+        }
+        Ok(names)
+    }
+
+    /// Return info for each field (name + data type).
+    pub fn field_info_list(&self) -> CgnsResult<Vec<FieldInfo>> {
+        let n = self.field_count()?;
+        let mut infos = Vec::with_capacity(n as usize);
+        let _guard = cgns_sys::lock_cgns();
+        for i in 1..=n {
+            let mut buf = vec![0u8; 64];
+            let mut data_type: u32 = 0;
+            let status = unsafe {
+                cgns_sys::cg_field_info(
+                    self.file_fn,
+                    self.base_index,
+                    self.zone_index,
+                    self.index,
+                    i,
+                    &mut data_type,
+                    buf.as_mut_ptr() as *mut i8,
+                )
+            };
+            check_sys_status(status)?;
+            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+            let name = std::str::from_utf8(&buf[..end])
+                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            infos.push(FieldInfo {
+                name: name.to_string(),
+                data_type: DataType::from_raw(data_type).unwrap_or(DataType::R8),
+            });
+        }
+        Ok(infos)
     }
 
     pub fn field_count(&self) -> CgnsResult<i32> {

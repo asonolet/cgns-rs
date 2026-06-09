@@ -1424,6 +1424,62 @@ fn test_base_zone_metadata() {
 }
 
 // ---------------------------------------------------------------------------
+// Solution and field metadata readback
+// ---------------------------------------------------------------------------
+#[test]
+fn test_solution_field_metadata() {
+    let path = test_path("solution_field_metadata");
+    let _ = std::fs::remove_file(&path);
+
+    let nverts: i64 = 8;
+    let data_f64: Vec<f64> = vec![0.0; nverts as usize];
+    let data_f32: Vec<f32> = vec![0.0; nverts as usize];
+    let data_i32: Vec<i32> = vec![0; nverts as usize];
+    let data_i64: Vec<i64> = vec![0; nverts as usize];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base
+            .create_zone_unstructured("Zone", nverts, 0)
+            .expect("create zone");
+        zone.write_coord_f64("X", &data_f64).expect("write X");
+
+        let sol = zone
+            .write_solution("FlowSolution", GridLocation::Vertex)
+            .expect("write solution");
+        zone.write_field_f32(&sol, "Pressure", &data_f32)
+            .expect("write Pressure");
+        zone.write_field_i32(&sol, "Index", &data_i32)
+            .expect("write Index");
+        zone.write_field_i64(&sol, "GID", &data_i64)
+            .expect("write GID");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let base = file.base("Base").expect("find base");
+        let zone = &base.zones().expect("zones")[0];
+        let sol = zone.solution("FlowSolution").expect("find solution");
+        let info = sol.info().expect("sol info");
+        assert_eq!(info.name, "FlowSolution");
+        assert_eq!(info.location, GridLocation::Vertex);
+
+        let names = sol.field_names().expect("field names");
+        assert_eq!(names, vec!["Pressure", "Index", "GID"]);
+
+        let finfos = sol.field_info_list().expect("field info list");
+        assert_eq!(finfos.len(), 3);
+        assert_eq!(finfos[0].name, "Pressure");
+        assert_eq!(finfos[0].data_type, cgns::data::DataType::R4);
+        assert_eq!(finfos[1].data_type, cgns::data::DataType::I4);
+        assert_eq!(finfos[2].data_type, cgns::data::DataType::I8);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
 // Various data types — write coordinates as f32, i32, i64
 // ---------------------------------------------------------------------------
 #[test]
