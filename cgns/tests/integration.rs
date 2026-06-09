@@ -1643,3 +1643,88 @@ fn test_write_coord_f32() {
 
     std::fs::remove_file(&path).ok();
 }
+
+// ---------------------------------------------------------------------------
+// General (non-1-to-1) connectivity — write, info, read_data
+// ---------------------------------------------------------------------------
+#[test]
+fn test_general_connectivity() {
+    let path = test_path("general_connectivity");
+    let _ = std::fs::remove_file(&path);
+
+    let verts = vec![0.0f64; 8];
+    let points_abut: Vec<i64> = vec![1, 1, 1, 1, 2, 2];
+    let donor_abut: Vec<i64> = vec![1, 1, 1, 1, 2, 2];
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+
+        let za = base
+            .create_zone_structured("ZoneA", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("create ZoneA");
+        za.write_coord_f64("X", &verts).expect("write X");
+
+        let zb = base
+            .create_zone_structured("ZoneB", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("create ZoneB");
+        zb.write_coord_f64("X", &verts).expect("write X");
+
+        za.write_conn(
+            "AbutFace",
+            cgns::data::GridLocation::Vertex,
+            cgns::data::GridConnectivityType::Abutting,
+            cgns::data::PointSetType::PointRange,
+            2, // npnts
+            &points_abut,
+            "ZoneB",
+            cgns::data::ZoneType::Structured,
+            cgns::data::PointSetType::PointListDonor,
+            2, // ndata_donor = number of donor points
+            &donor_abut,
+        )
+        .expect("write general connection");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let base = file.base("Base").expect("find base");
+        let zones = base.zones().expect("zones");
+
+        assert_eq!(zones[0].nconns().expect("ZoneA nconns"), 1);
+        let conns = zones[0]
+            .general_connectivities()
+            .expect("ZoneA general_connectivities");
+        assert_eq!(conns.len(), 1);
+
+        assert_eq!(zones[1].nconns().expect("ZoneB nconns"), 0);
+
+        let conn = zones[0].conn("AbutFace").expect("find conn by name");
+        let info = conn.info().expect("conn info");
+        assert_eq!(info.name, "AbutFace");
+        assert_eq!(
+            info.connection_type,
+            cgns::data::GridConnectivityType::Abutting
+        );
+        assert_eq!(info.location, cgns::data::GridLocation::Vertex);
+        assert_eq!(info.point_set_type, cgns::data::PointSetType::PointRange);
+        assert_eq!(info.num_points, 2);
+        assert_eq!(info.donor_name, "ZoneB");
+        assert_eq!(info.donor_zone_type, cgns::data::ZoneType::Structured);
+        assert_eq!(
+            info.donor_point_set_type,
+            cgns::data::PointSetType::PointListDonor
+        );
+        assert_eq!(info.num_donor_data, 2);
+
+        let data = conn.read_data(3).expect("read_data");
+        assert_eq!(data.points, points_abut);
+        assert_eq!(data.donor_data, donor_abut);
+        assert_eq!(data.info.name, "AbutFace");
+        assert_eq!(
+            data.info.connection_type,
+            cgns::data::GridConnectivityType::Abutting
+        );
+    }
+
+    std::fs::remove_file(&path).ok();
+}

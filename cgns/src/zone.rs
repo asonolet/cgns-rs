@@ -1,6 +1,8 @@
 use crate::bc::Bc;
-use crate::connectivity::OneToOne;
-use crate::data::{BcType, DataType, ElementType, GridLocation, PointSetType, ZoneType};
+use crate::connectivity::{GeneralConnectivity, OneToOne};
+use crate::data::{
+    BcType, DataType, ElementType, GridConnectivityType, GridLocation, PointSetType, ZoneType,
+};
 use crate::error::{check_sys_status, from_sys_result, CgnsResult};
 use crate::section::Section;
 
@@ -559,6 +561,138 @@ impl Zone {
             });
         }
         Ok(conns)
+    }
+
+    /// Return the number of general (non-1-to-1) zone interface connections.
+    pub fn nconns(&self) -> CgnsResult<i32> {
+        let _guard = cgns_sys::lock_cgns();
+        let mut n: i32 = 0;
+        let status =
+            unsafe { cgns_sys::cg_nconns(self.file_fn, self.base_index, self.index, &mut n) };
+        check_sys_status(status)?;
+        Ok(n)
+    }
+
+    /// Find a general connection by name.
+    pub fn conn(&self, name: &str) -> CgnsResult<GeneralConnectivity> {
+        let n = self.nconns()?;
+        let _guard = cgns_sys::lock_cgns();
+        for i in 1..=n {
+            let mut buf = vec![0u8; 64];
+            let mut location: u32 = 0;
+            let mut connect_type: u32 = 0;
+            let mut ptset_type: u32 = 0;
+            let mut npnts: i64 = 0;
+            let mut donor_buf = vec![0u8; 64];
+            let mut donor_zonetype: u32 = 0;
+            let mut donor_ptset_type: u32 = 0;
+            let mut donor_datatype: u32 = 0;
+            let mut ndata_donor: i64 = 0;
+            let status = unsafe {
+                cgns_sys::cg_conn_info(
+                    self.file_fn,
+                    self.base_index,
+                    self.index,
+                    i,
+                    buf.as_mut_ptr() as *mut i8,
+                    &mut location,
+                    &mut connect_type,
+                    &mut ptset_type,
+                    &mut npnts,
+                    donor_buf.as_mut_ptr() as *mut i8,
+                    &mut donor_zonetype,
+                    &mut donor_ptset_type,
+                    &mut donor_datatype,
+                    &mut ndata_donor,
+                )
+            };
+            check_sys_status(status)?;
+            let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+            let found = std::str::from_utf8(&buf[..end])
+                .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+            if found == name {
+                return Ok(GeneralConnectivity {
+                    file_fn: self.file_fn,
+                    base_index: self.base_index,
+                    zone_index: self.index,
+                    index: i,
+                });
+            }
+        }
+        Err(crate::error::CgnsError::NotFound(format!(
+            "connection '{}' not found",
+            name
+        )))
+    }
+
+    /// Return all general (non-1-to-1) zone interface connections.
+    pub fn general_connectivities(&self) -> CgnsResult<Vec<GeneralConnectivity>> {
+        let n = self.nconns()?;
+        let mut conns = Vec::with_capacity(n as usize);
+        for i in 1..=n {
+            conns.push(GeneralConnectivity {
+                file_fn: self.file_fn,
+                base_index: self.base_index,
+                zone_index: self.index,
+                index: i,
+            });
+        }
+        Ok(conns)
+    }
+
+    /// Write a general (non-1-to-1) zone interface connection.
+    ///
+    /// `npnts` is the **number of points** in the point set (e.g. `2` for a
+    /// `PointRange` in 3-D).  `ndata_donor` is the **number of donor points**
+    /// (the CGNS library internally multiplies by the index dimension).
+    #[allow(clippy::too_many_arguments)]
+    pub fn write_conn(
+        &self,
+        name: &str,
+        location: GridLocation,
+        connection_type: GridConnectivityType,
+        point_set_type: PointSetType,
+        npnts: i64,
+        points: &[i64],
+        donor_name: &str,
+        donor_zone_type: ZoneType,
+        donor_point_set_type: PointSetType,
+        ndata_donor: i64,
+        donor_data: &[i64],
+    ) -> CgnsResult<GeneralConnectivity> {
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let c_donor = std::ffi::CString::new(donor_name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        let mut idx: i32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_conn_write(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                c_name.as_ptr(),
+                location.to_raw(),
+                connection_type.to_raw(),
+                point_set_type.to_raw(),
+                npnts,
+                points.as_ptr(),
+                c_donor.as_ptr(),
+                donor_zone_type.to_raw(),
+                donor_point_set_type.to_raw(),
+                cgns_sys::DataType_t_LongInteger,
+                ndata_donor,
+                donor_data.as_ptr(),
+                &mut idx,
+            )
+        };
+        check_sys_status(status)?;
+        Ok(GeneralConnectivity {
+            file_fn: self.file_fn,
+            base_index: self.base_index,
+            zone_index: self.index,
+            index: idx,
+        })
     }
 
     /// Write grid coordinates with arbitrary data type.

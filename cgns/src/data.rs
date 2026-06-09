@@ -548,6 +548,41 @@ impl DataClass {
     }
 }
 
+/// Type of grid connectivity interface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridConnectivityType {
+    Null,
+    UserDefined,
+    Overset,
+    Abutting,
+    Abutting1to1,
+}
+
+impl GridConnectivityType {
+    pub const fn to_raw(self) -> u32 {
+        match self {
+            Self::Null => cgns_sys::GridConnectivityType_t_GridConnectivityTypeNull,
+            Self::UserDefined => cgns_sys::GridConnectivityType_t_GridConnectivityTypeUserDefined,
+            Self::Overset => cgns_sys::GridConnectivityType_t_Overset,
+            Self::Abutting => cgns_sys::GridConnectivityType_t_Abutting,
+            Self::Abutting1to1 => cgns_sys::GridConnectivityType_t_Abutting1to1,
+        }
+    }
+
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match raw {
+            x if x == cgns_sys::GridConnectivityType_t_GridConnectivityTypeNull => Some(Self::Null),
+            x if x == cgns_sys::GridConnectivityType_t_GridConnectivityTypeUserDefined => {
+                Some(Self::UserDefined)
+            }
+            x if x == cgns_sys::GridConnectivityType_t_Overset => Some(Self::Overset),
+            x if x == cgns_sys::GridConnectivityType_t_Abutting => Some(Self::Abutting),
+            x if x == cgns_sys::GridConnectivityType_t_Abutting1to1 => Some(Self::Abutting1to1),
+            _ => None,
+        }
+    }
+}
+
 /// CGNS simulation type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimulationType {
@@ -608,31 +643,40 @@ impl UnitsSystem {
     }
 }
 
-/// How a point set is specified for a boundary condition.
+/// How a point set is specified for a boundary condition or connectivity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PointSetType {
     PointList,
+    PointListDonor,
     PointRange,
+    PointRangeDonor,
     ElementRange,
     ElementList,
+    CellListDonor,
 }
 
 impl PointSetType {
     pub const fn to_raw(self) -> u32 {
         match self {
             Self::PointList => cgns_sys::PointSetType_t_PointList,
+            Self::PointListDonor => cgns_sys::PointSetType_t_PointListDonor,
             Self::PointRange => cgns_sys::PointSetType_t_PointRange,
+            Self::PointRangeDonor => cgns_sys::PointSetType_t_PointRangeDonor,
             Self::ElementRange => cgns_sys::PointSetType_t_ElementRange,
             Self::ElementList => cgns_sys::PointSetType_t_ElementList,
+            Self::CellListDonor => cgns_sys::PointSetType_t_CellListDonor,
         }
     }
 
     pub const fn from_raw(raw: u32) -> Option<Self> {
         match raw {
             x if x == cgns_sys::PointSetType_t_PointList => Some(Self::PointList),
+            x if x == cgns_sys::PointSetType_t_PointListDonor => Some(Self::PointListDonor),
             x if x == cgns_sys::PointSetType_t_PointRange => Some(Self::PointRange),
+            x if x == cgns_sys::PointSetType_t_PointRangeDonor => Some(Self::PointRangeDonor),
             x if x == cgns_sys::PointSetType_t_ElementRange => Some(Self::ElementRange),
             x if x == cgns_sys::PointSetType_t_ElementList => Some(Self::ElementList),
+            x if x == cgns_sys::PointSetType_t_CellListDonor => Some(Self::CellListDonor),
             _ => None,
         }
     }

@@ -96,7 +96,9 @@ mod zone;
 
 pub use base::Base;
 pub use bc::Bc;
-pub use connectivity::OneToOne;
+pub use connectivity::{
+    GeneralConnectivity, GeneralConnectivityData, GeneralConnectivityInfo, OneToOne,
+};
 pub use file::CgnsFile;
 pub use section::Section;
 pub use zone::{Solution, Zone};
