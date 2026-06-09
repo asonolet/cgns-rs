@@ -151,6 +151,107 @@ impl Zone {
         Ok(())
     }
 
+    fn read_ranges_size(rmin: &[i64], rmax: &[i64]) -> usize {
+        rmin.iter()
+            .zip(rmax)
+            .map(|(&a, &b)| (b - a + 1) as usize)
+            .product()
+    }
+
+    /// Read coordinate data and return an owned `Vec<f64>`.
+    pub fn read_coord_f64_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<f64>> {
+        let n = Self::read_ranges_size(rmin, rmax);
+        let mut data = vec![0.0; n];
+        self.read_coord_f64(name, rmin, rmax, &mut data)?;
+        Ok(data)
+    }
+
+    /// Read coordinate data and return an owned `Vec<f32>`.
+    pub fn read_coord_f32_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<f32>> {
+        let n = Self::read_ranges_size(rmin, rmax);
+        let mut data = vec![0.0f32; n];
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        unsafe {
+            check_sys_status(cgns_sys::cg_coord_read(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                c_name.as_ptr(),
+                cgns_sys::DataType_t_RealSingle,
+                rmin.as_ptr(),
+                rmax.as_ptr(),
+                data.as_mut_ptr() as *mut std::ffi::c_void,
+            ))?;
+        }
+        Ok(data)
+    }
+
+    /// Read coordinate data and return an owned `Vec<i32>`.
+    pub fn read_coord_i32_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<i32>> {
+        let n = Self::read_ranges_size(rmin, rmax);
+        let mut data = vec![0i32; n];
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        unsafe {
+            check_sys_status(cgns_sys::cg_coord_read(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                c_name.as_ptr(),
+                cgns_sys::DataType_t_Integer,
+                rmin.as_ptr(),
+                rmax.as_ptr(),
+                data.as_mut_ptr() as *mut std::ffi::c_void,
+            ))?;
+        }
+        Ok(data)
+    }
+
+    /// Read coordinate data and return an owned `Vec<i64>`.
+    pub fn read_coord_i64_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<i64>> {
+        let n = Self::read_ranges_size(rmin, rmax);
+        let mut data = vec![0i64; n];
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        unsafe {
+            check_sys_status(cgns_sys::cg_coord_read(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                c_name.as_ptr(),
+                cgns_sys::DataType_t_LongInteger,
+                rmin.as_ptr(),
+                rmax.as_ptr(),
+                data.as_mut_ptr() as *mut std::ffi::c_void,
+            ))?;
+        }
+        Ok(data)
+    }
+
     pub fn solution_count(&self) -> CgnsResult<i32> {
         let _guard = cgns_sys::lock_cgns();
         let mut n: i32 = 0;
@@ -722,5 +823,109 @@ impl Solution {
             data,
         )?;
         Ok(())
+    }
+
+    fn read_field_range_size(rmin: &[i64], rmax: &[i64]) -> usize {
+        rmin.iter()
+            .zip(rmax)
+            .map(|(&a, &b)| (b - a + 1) as usize)
+            .product()
+    }
+
+    /// Read a field and return an owned `Vec<f64>`.
+    pub fn read_field_f64_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<f64>> {
+        let n = Self::read_field_range_size(rmin, rmax);
+        let mut data = vec![0.0; n];
+        self.read_field_f64(name, rmin, rmax, &mut data)?;
+        Ok(data)
+    }
+
+    /// Read a field and return an owned `Vec<f32>`.
+    pub fn read_field_f32_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<f32>> {
+        let n = Self::read_field_range_size(rmin, rmax);
+        let mut data = vec![0.0f32; n];
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        unsafe {
+            check_sys_status(cgns_sys::cg_field_read(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                c_name.as_ptr(),
+                cgns_sys::DataType_t_RealSingle,
+                rmin.as_ptr(),
+                rmax.as_ptr(),
+                data.as_mut_ptr() as *mut std::ffi::c_void,
+            ))?;
+        }
+        Ok(data)
+    }
+
+    /// Read a field and return an owned `Vec<i32>`.
+    pub fn read_field_i32_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<i32>> {
+        let n = Self::read_field_range_size(rmin, rmax);
+        let mut data = vec![0i32; n];
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        unsafe {
+            check_sys_status(cgns_sys::cg_field_read(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                c_name.as_ptr(),
+                cgns_sys::DataType_t_Integer,
+                rmin.as_ptr(),
+                rmax.as_ptr(),
+                data.as_mut_ptr() as *mut std::ffi::c_void,
+            ))?;
+        }
+        Ok(data)
+    }
+
+    /// Read a field and return an owned `Vec<i64>`.
+    pub fn read_field_i64_vec(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+    ) -> CgnsResult<Vec<i64>> {
+        let n = Self::read_field_range_size(rmin, rmax);
+        let mut data = vec![0i64; n];
+        let _guard = cgns_sys::lock_cgns();
+        let c_name = std::ffi::CString::new(name)
+            .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
+        unsafe {
+            check_sys_status(cgns_sys::cg_field_read(
+                self.file_fn,
+                self.base_index,
+                self.zone_index,
+                self.index,
+                c_name.as_ptr(),
+                cgns_sys::DataType_t_LongInteger,
+                rmin.as_ptr(),
+                rmax.as_ptr(),
+                data.as_mut_ptr() as *mut std::ffi::c_void,
+            ))?;
+        }
+        Ok(data)
     }
 }

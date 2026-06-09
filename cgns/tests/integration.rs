@@ -1530,6 +1530,100 @@ fn test_units_dataclass_simulation_type() {
 }
 
 // ---------------------------------------------------------------------------
+// Owned-return coord/field read convenience methods (read_*_vec)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_owned_read_coord_field() {
+    let path = test_path("owned_read_coord_field");
+    let _ = std::fs::remove_file(&path);
+
+    let ni: i64 = 4;
+    let nj: i64 = 3;
+    let nk: i64 = 5;
+    let nverts = (ni * nj * nk) as usize;
+
+    let mut xs_f64 = vec![0.0f64; nverts];
+    for (i, v) in xs_f64.iter_mut().enumerate() {
+        *v = i as f64;
+    }
+    let xs_f32: Vec<f32> = xs_f64.iter().map(|&x| x as f32).collect();
+    let xs_i32: Vec<i32> = xs_f64.iter().map(|&x| x as i32).collect();
+    let xs_i64: Vec<i64> = xs_f64.iter().map(|&x| x as i64).collect();
+    let rmin = [1i64, 1, 1];
+    let rmax = [ni, nj, nk];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base
+            .create_zone_structured("Zone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+            .expect("create zone");
+
+        zone.write_coord_f64("X", &xs_f64).expect("write X f64");
+        zone.write_coord_f32("X_f32", &xs_f32).expect("write X f32");
+
+        let sol = zone
+            .write_solution("Sol", GridLocation::Vertex)
+            .expect("write solution");
+        sol.write_field_f64("F_f64", &xs_f64).expect("write F_f64");
+        zone.write_field_f32(&sol, "F_f32", &xs_f32)
+            .expect("write F_f32");
+        zone.write_field_i32(&sol, "F_i32", &xs_i32)
+            .expect("write F_i32");
+        zone.write_field_i64(&sol, "F_i64", &xs_i64)
+            .expect("write F_i64");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let zone = file
+            .base("Base")
+            .expect("base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
+
+        // Coord _vec methods
+        let got = zone
+            .read_coord_f64_vec("X", &rmin, &rmax)
+            .expect("read_coord_f64_vec");
+        assert_eq!(got, xs_f64);
+
+        let got = zone
+            .read_coord_f32_vec("X_f32", &rmin, &rmax)
+            .expect("read_coord_f32_vec");
+        assert_eq!(got, xs_f32);
+
+        // Field _vec methods
+        let sol = zone.solution("Sol").expect("find solution");
+
+        let got = sol
+            .read_field_f64_vec("F_f64", &rmin, &rmax)
+            .expect("read_field_f64_vec");
+        assert_eq!(got, xs_f64);
+
+        let got = sol
+            .read_field_f32_vec("F_f32", &rmin, &rmax)
+            .expect("read_field_f32_vec");
+        assert_eq!(got, xs_f32);
+
+        let got = sol
+            .read_field_i32_vec("F_i32", &rmin, &rmax)
+            .expect("read_field_i32_vec");
+        assert_eq!(got, xs_i32);
+
+        let got = sol
+            .read_field_i64_vec("F_i64", &rmin, &rmax)
+            .expect("read_field_i64_vec");
+        assert_eq!(got, xs_i64);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
 // Various data types — write coordinates as f32, i32, i64
 // ---------------------------------------------------------------------------
 #[test]
