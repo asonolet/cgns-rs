@@ -14,8 +14,8 @@
 | Open for modify | ✅ `CgnsFile::modify` | |
 | Close | ✅ `CgnsFile::close` + `Drop` | Double-close safe |
 | File type selection | 🟡 `ensure_hdf5_backend` | HDF5 only; ADF not exposed |
-| File save / flush | 🔲 | `cg_save` not wrapped |
-| File version query | 🔲 | `cg_version`, `cg_get_file_type` |
+| File save / flush | ✅ `CgnsFile::save`, `save_as` | |
+| File version query | ✅ `CgnsFile::version` | |
 
 ---
 
@@ -56,7 +56,9 @@
 | Write f32 | ✅ `write_coord_f32` | |
 | Read f64 full | ✅ `read_coord_f64` | Sub-range via rmin/rmax |
 | Read f64 sub-range | ✅ | |
-| Read f32 | 🔲 | |
+| Read f32 | ✅ `Zone::read_coord_f32` | |
+| Read i32 | ✅ `Zone::read_coord_i32` | |
+| Read i64 | ✅ `Zone::read_coord_i64` | |
 | Read coord as Vec (f64/f32/i32/i64) | ✅ `read_coord_*_vec()` | Owned-return convenience methods |
 | Coord info (names, dims) | ✅ `coord_names`, `coord_count` | |
 | Grid coordinates (`cg_grid_*`) | 🔲 | Grid family info not wrapped |
@@ -97,14 +99,14 @@
 | Write field i64 | ✅ `Zone::write_field_i64` | Via Zone |
 | Read field f64 full | ✅ `Solution::read_field_f64` | |
 | Read field f64 sub-range | ✅ | rmin/rmax |
-| Read field f32 | 🔲 | |
-| Read field i32 | 🔲 | |
-| Read field i64 | 🔲 | |
+| Read field f32 | ✅ `Solution::read_field_f32` | Sub-range via rmin/rmax |
+| Read field i32 | ✅ `Solution::read_field_i32` | |
+| Read field i64 | ✅ `Solution::read_field_i64` | |
 | Solution metadata | ✅ `Solution::info()` | name, location |
 | Field info (count, names, types) | ✅ `field_names`, `field_info_list` | |
-| Read field f32 full | 🔲 | |
-| Read field i32 full | 🔲 | |
-| Read field i64 full | 🔲 | |
+| Read field f32 full | ✅ | Uses `read_field_f32` with full range |
+| Read field i32 full | ✅ | |
+| Read field i64 full | ✅ | |
 | Read field f64/f32/i32/i64 full as `Vec` | ✅ `read_field_*_vec()` | Owned-return convenience methods |
 | Grid location enum | ✅ 8 variants | Vertex, CellCenter, … |
 | Solution delete | 🔲 | `cg_sol_delete` not wrapped |
@@ -304,13 +306,13 @@
 
 | Priority | Task | Effort |
 |---|---|---|
-| P0 | Add field reads for f32, i32, i64 types | Small |
-| P0 | Add f32 coordinate read | Small |
+| P0 | Add field reads for f32, i32, i64 types | ✅ Done |
+| P0 | Add f32 coordinate read | ✅ Done |
 | P0 | Expose zone size read (`cg_zone_read`) | ✅ Done |
 | P0 | Expose cell_dim and phys_dim on `Base` | ✅ Done |
 | P1 | Read field / coord via ndarray | Small |
-| P1 | Add `CgnsFile::save` / flush | Small |
-| P1 | Add `Zone::coord_info` (data type per coord) | Small |
+| P1 | Add `CgnsFile::save` / flush | ✅ Done |
+| P1 | Add `Zone::coord_info` (data type per coord) | ✅ Done |
 
 ## Phase 2: Remaining Core Nodes (Medium-term)
 
@@ -362,12 +364,12 @@
 
 | Category | Total Features | ✅ High-Level | 🟡 FFI Only | 🔲 Not Bound |
 |---|---|---|---|---|
-| File Operations | 5 | 3 | 1 | 1 |
+| File Operations | 5 | 5 | 0 | 0 |
 | Bases | 6 | 6 | 0 | 0 |
 | Zones | 8 | 6 | 0 | 2 |
-| Grid Coordinates | 8 | 5 | 0 | 3 |
+| Grid Coordinates | 10 | 8 | 0 | 2 |
 | Element Sections | 12 | 9 | 0 | 3 |
-| Solutions & Fields | 18 | 13 | 0 | 5 |
+| Solutions & Fields | 18 | 16 | 0 | 2 |
 | Boundary Conditions | 8 | 5 | 0 | 3 |
 | 1-to-1 Connectivity | 4 | 4 | 0 | 0 |
 | General Connectivity | 4 | 3 | 0 | 1 |
@@ -385,4 +387,4 @@
 | Thread Safety | 3 | 1 | 2 | 0 |
 | Parallel CGNS | 1 | 0 | 0 | 1 |
 | CLI Tools | 6 | 6 | 0 | 0 |
-| **Total** | **122** | **73** | **5** | **44** |
+| **Total** | **124** | **83** | **5** | **36** |

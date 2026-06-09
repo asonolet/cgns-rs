@@ -1260,3 +1260,21 @@ pub fn gopath(fn_: i32, path: &str) -> Result<(), String> {
     let status = unsafe { cg_gopath(fn_, c_path.as_ptr()) };
     status_to_result(status)
 }
+
+/// Query the CGNS file version.
+pub fn version(fn_: i32, file_version: &mut f32) -> Result<(), String> {
+    let _guard = lock_cgns()?;
+    let status = unsafe { cg_version(fn_, file_version as *mut f32) };
+    status_to_result(status)
+}
+
+/// Save the CGNS file identified by `fn_` to `filename` with the given `file_type`.
+///
+/// `follow_links` controls whether symbolic links are followed (0 = no, 1 = yes).
+pub fn save_as(fn_: i32, filename: &str, file_type: i32, follow_links: i32) -> Result<(), String> {
+    let _guard = lock_cgns()?;
+    let c_filename =
+        std::ffi::CString::new(filename).map_err(|e| format!("invalid filename: {}", e))?;
+    let status = unsafe { cg_save_as(fn_, c_filename.as_ptr(), file_type, follow_links) };
+    status_to_result(status)
+}

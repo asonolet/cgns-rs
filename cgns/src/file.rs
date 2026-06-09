@@ -3,23 +3,36 @@ use crate::error::CgnsResult;
 
 pub struct CgnsFile {
     pub(crate) fn_: i32,
+    pub(crate) path: String,
     closed: bool,
 }
 
 impl CgnsFile {
     pub fn open(path: &str) -> CgnsResult<Self> {
         let fn_ = cgns_sys::open_read(path)?;
-        Ok(Self { fn_, closed: false })
+        Ok(Self {
+            fn_,
+            path: path.to_string(),
+            closed: false,
+        })
     }
 
     pub fn create(path: &str) -> CgnsResult<Self> {
         let fn_ = cgns_sys::open_write(path)?;
-        Ok(Self { fn_, closed: false })
+        Ok(Self {
+            fn_,
+            path: path.to_string(),
+            closed: false,
+        })
     }
 
     pub fn modify(path: &str) -> CgnsResult<Self> {
         let fn_ = cgns_sys::open_modify(path)?;
-        Ok(Self { fn_, closed: false })
+        Ok(Self {
+            fn_,
+            path: path.to_string(),
+            closed: false,
+        })
     }
 
     pub fn close(&mut self) -> CgnsResult<()> {
@@ -81,6 +94,22 @@ impl CgnsFile {
             });
         }
         Ok(bases)
+    }
+
+    pub fn version(&self) -> CgnsResult<f32> {
+        let mut v: f32 = 0.0;
+        cgns_sys::version(self.fn_, &mut v)?;
+        Ok(v)
+    }
+
+    pub fn save(&self) -> CgnsResult<()> {
+        cgns_sys::save_as(self.fn_, &self.path, 0, 0)?;
+        Ok(())
+    }
+
+    pub fn save_as(&self, path: &str, file_type: i32, follow_links: i32) -> CgnsResult<()> {
+        cgns_sys::save_as(self.fn_, path, file_type, follow_links)?;
+        Ok(())
     }
 }
 

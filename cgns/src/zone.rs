@@ -125,6 +125,30 @@ impl Zone {
         Ok(names)
     }
 
+    pub fn coord_info(&self) -> CgnsResult<Vec<(String, DataType)>> {
+        let n = self.coord_count()?;
+        let mut infos = Vec::with_capacity(n as usize);
+        for i in 1..=n {
+            let mut buf = vec![0u8; 64];
+            let mut data_type: u32 = 0;
+            cgns_sys::coord_info(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                i,
+                &mut data_type,
+                &mut buf,
+            )
+            .map_err(crate::error::CgnsError::Invalid)?;
+            let name = crate::util::read_c_string(&buf)?;
+            infos.push((
+                name.to_string(),
+                DataType::from_raw(data_type).unwrap_or(DataType::R8),
+            ));
+        }
+        Ok(infos)
+    }
+
     /// Write 64-bit float coordinate data (structured zones).
     ///
     /// `data` is a flat slice in **Fortran (column-major) order**:
@@ -167,6 +191,66 @@ impl Zone {
             data,
         )?;
         Ok(())
+    }
+
+    /// Read a sub-range of 32-bit float coordinate data.
+    pub fn read_coord_f32(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+        data: &mut [f32],
+    ) -> CgnsResult<()> {
+        cgns_sys::coord_read_f32(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)
+    }
+
+    /// Read a sub-range of 32-bit integer coordinate data.
+    pub fn read_coord_i32(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+        data: &mut [i32],
+    ) -> CgnsResult<()> {
+        cgns_sys::coord_read_i32(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)
+    }
+
+    /// Read a sub-range of 64-bit integer coordinate data.
+    pub fn read_coord_i64(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+        data: &mut [i64],
+    ) -> CgnsResult<()> {
+        cgns_sys::coord_read_i64(
+            self.file_fn,
+            self.base_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)
     }
 
     fn read_ranges_size(rmin: &[i64], rmax: &[i64]) -> usize {
@@ -758,6 +842,69 @@ impl Solution {
             data,
         )?;
         Ok(())
+    }
+
+    /// Read a sub-range of 32-bit float field data.
+    pub fn read_field_f32(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+        data: &mut [f32],
+    ) -> CgnsResult<()> {
+        cgns_sys::field_read_f32(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)
+    }
+
+    /// Read a sub-range of 32-bit integer field data.
+    pub fn read_field_i32(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+        data: &mut [i32],
+    ) -> CgnsResult<()> {
+        cgns_sys::field_read_i32(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)
+    }
+
+    /// Read a sub-range of 64-bit integer field data.
+    pub fn read_field_i64(
+        &self,
+        name: &str,
+        rmin: &[i64],
+        rmax: &[i64],
+        data: &mut [i64],
+    ) -> CgnsResult<()> {
+        cgns_sys::field_read_i64(
+            self.file_fn,
+            self.base_index,
+            self.zone_index,
+            self.index,
+            name,
+            rmin,
+            rmax,
+            data,
+        )
+        .map_err(crate::error::CgnsError::Invalid)
     }
 
     /// Read a field and return an owned `Vec<f64>`.
