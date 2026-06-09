@@ -60,6 +60,7 @@
 | Read i32 | ✅ `Zone::read_coord_i32` | |
 | Read i64 | ✅ `Zone::read_coord_i64` | |
 | Read coord as Vec (f64/f32/i32/i64) | ✅ `read_coord_*_vec()` | Owned-return convenience methods |
+| Read coord as ndarray (f64/f32/i32/i64) | ✅ `read_coord_*_ndarray()` | Feature `ndarray` (default on) |
 | Coord info (names, dims) | ✅ `coord_names`, `coord_count` | |
 | Grid coordinates (`cg_grid_*`) | 🔲 | Grid family info not wrapped |
 
@@ -75,7 +76,7 @@
 | Query by name | ✅ `section(name)` | |
 | Read metadata | ✅ `SectionInfo` | name, type, range, nbndry, parent_flag |
 | Read connectivity | ✅ `read_connectivity` → `Vec<i64>` | |
-| Read connectivity ndarray | ✅ `read_connectivity_ndarray` → `Array2<i64>` | ndarray integration |
+| Read connectivity ndarray | ✅ `read_connectivity_ndarray` → `Array2<i64>` | Feature `ndarray` (default on) |
 | Element count | ✅ `element_count` | |
 | NPE query | ✅ `ElementType::npe()` | Calls `cg_npe` |
 | Element types enum | ✅ 22 variants | Null, Bar2, Tri3, … NfaceN |
@@ -108,6 +109,7 @@
 | Read field i32 full | ✅ | |
 | Read field i64 full | ✅ | |
 | Read field f64/f32/i32/i64 full as `Vec` | ✅ `read_field_*_vec()` | Owned-return convenience methods |
+| Read field f64/f32/i32/i64 as ndarray | ✅ `read_field_*_ndarray()` | Feature `ndarray` (default on) |
 | Grid location enum | ✅ 8 variants | Vertex, CellCenter, … |
 | Solution delete | 🔲 | `cg_sol_delete` not wrapped |
 
@@ -310,7 +312,7 @@
 | P0 | Add f32 coordinate read | ✅ Done |
 | P0 | Expose zone size read (`cg_zone_read`) | ✅ Done |
 | P0 | Expose cell_dim and phys_dim on `Base` | ✅ Done |
-| P1 | Read field / coord via ndarray | Small |
+| P1 | Read field / coord via ndarray | ✅ Done |
 | P1 | Add `CgnsFile::save` / flush | ✅ Done |
 | P1 | Add `Zone::coord_info` (data type per coord) | ✅ Done |
 

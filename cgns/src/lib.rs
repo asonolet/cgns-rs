@@ -32,7 +32,7 @@
 //! Each vertex reference is a **1-based** node index into the zone's vertex
 //! list.  The convenience method
 //! [`Section::read_connectivity_ndarray`](section/struct.Section.html#method.read_connectivity_ndarray)
-//! reshapes this into an `ndarray::Array2<i64>` with shape `(num_elements, npe)`.
+//! (requires feature `ndarray`) reshapes this into an `ndarray::Array2<i64>` with shape `(num_elements, npe)`.
 //!
 //! # Structured zone indexing
 //!

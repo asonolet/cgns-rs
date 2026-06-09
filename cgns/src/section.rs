@@ -108,6 +108,7 @@ impl Section {
     ///
     /// Returns `Invalid` if the section uses `Mixed` elements (variable NPE)
     /// or if the element type reports zero vertices per element.
+    #[cfg(feature = "ndarray")]
     pub fn read_connectivity_ndarray(&self) -> CgnsResult<ndarray::Array2<i64>> {
         let info = self.info()?;
         if info.element_type == ElementType::Mixed {

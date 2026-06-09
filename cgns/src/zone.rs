@@ -95,6 +95,36 @@ macro_rules! impl_typed_field_read {
     };
 }
 
+#[cfg(feature = "ndarray")]
+macro_rules! impl_typed_coord_read_ndarray {
+    ($method:ident, $inner:ident, $ty:ty) => {
+        pub fn $method(
+            &self,
+            name: &str,
+            rmin: &[i64],
+            rmax: &[i64],
+        ) -> CgnsResult<ndarray::Array1<$ty>> {
+            let data = self.$inner(name, rmin, rmax)?;
+            Ok(ndarray::Array1::from(data))
+        }
+    };
+}
+
+#[cfg(feature = "ndarray")]
+macro_rules! impl_typed_field_read_ndarray {
+    ($method:ident, $inner:ident, $ty:ty) => {
+        pub fn $method(
+            &self,
+            name: &str,
+            rmin: &[i64],
+            rmax: &[i64],
+        ) -> CgnsResult<ndarray::Array1<$ty>> {
+            let data = self.$inner(name, rmin, rmax)?;
+            Ok(ndarray::Array1::from(data))
+        }
+    };
+}
+
 impl Zone {
     pub const fn index(&self) -> i32 {
         self.index
@@ -322,6 +352,15 @@ impl Zone {
         .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
+
+    #[cfg(feature = "ndarray")]
+    impl_typed_coord_read_ndarray!(read_coord_f64_ndarray, read_coord_f64_vec, f64);
+    #[cfg(feature = "ndarray")]
+    impl_typed_coord_read_ndarray!(read_coord_f32_ndarray, read_coord_f32_vec, f32);
+    #[cfg(feature = "ndarray")]
+    impl_typed_coord_read_ndarray!(read_coord_i32_ndarray, read_coord_i32_vec, i32);
+    #[cfg(feature = "ndarray")]
+    impl_typed_coord_read_ndarray!(read_coord_i64_ndarray, read_coord_i64_vec, i64);
 
     pub fn solution_count(&self) -> CgnsResult<i32> {
         cgns_sys::nsols(self.file_fn, self.base_index, self.index)
@@ -945,4 +984,13 @@ impl Solution {
         .map_err(crate::error::CgnsError::Invalid)?;
         Ok(data)
     }
+
+    #[cfg(feature = "ndarray")]
+    impl_typed_field_read_ndarray!(read_field_f64_ndarray, read_field_f64_vec, f64);
+    #[cfg(feature = "ndarray")]
+    impl_typed_field_read_ndarray!(read_field_f32_ndarray, read_field_f32_vec, f32);
+    #[cfg(feature = "ndarray")]
+    impl_typed_field_read_ndarray!(read_field_i32_ndarray, read_field_i32_vec, i32);
+    #[cfg(feature = "ndarray")]
+    impl_typed_field_read_ndarray!(read_field_i64_ndarray, read_field_i64_vec, i64);
 }

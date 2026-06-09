@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 description = "Safe high-level Rust bindings for CGNS (CFD General Notation System)"
 
+[features]
+default = ["ndarray"]
+ndarray = ["dep:ndarray"]
+
 [dependencies]
 cgns-sys = { path = "../cgns-sys" }
-ndarray = "0.17"
+ndarray = { version = "0.17", optional = true }
