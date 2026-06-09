@@ -28,7 +28,7 @@ impl Zone {
     /// Return the zone size array: `[num_vertices, num_elements, ...]`.
     /// For structured zones this returns the full 9-entry size array.
     pub fn size(&self) -> CgnsResult<Vec<i64>> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         // Query index_dim internally (avoid calling self.index_dim() which acquires the mutex)
         let mut index_dim: i32 = 0;
         let status = unsafe {

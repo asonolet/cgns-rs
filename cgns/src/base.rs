@@ -99,7 +99,7 @@ impl Base {
 
     /// Write base units (Mass, Length, Time, Temperature, Angle).
     pub fn write_units(&self, units: &UnitsSystem) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_path = std::ffi::CString::new(format!("/{}", self.name))
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         unsafe {
@@ -116,7 +116,7 @@ impl Base {
 
     /// Read base units.
     pub fn read_units(&self) -> CgnsResult<UnitsSystem> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_path = std::ffi::CString::new(format!("/{}", self.name))
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         unsafe {
@@ -146,7 +146,7 @@ impl Base {
 
     /// Write the data class for this base.
     pub fn write_dataclass(&self, dc: DataClass) -> CgnsResult<()> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_path = std::ffi::CString::new(format!("/{}", self.name))
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         unsafe {
@@ -157,7 +157,7 @@ impl Base {
 
     /// Read the data class from this base.
     pub fn read_dataclass(&self) -> CgnsResult<DataClass> {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = cgns_sys::lock_cgns()?;
         let c_path = std::ffi::CString::new(format!("/{}", self.name))
             .map_err(|e| crate::error::CgnsError::Invalid(e.to_string()))?;
         unsafe {

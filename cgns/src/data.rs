@@ -224,7 +224,10 @@ impl ElementType {
     /// Returns `0` for variable-size types (`Mixed`, `NgoneN`, `NfaceN`)
     /// and for unknown types.
     pub fn npe(self) -> i32 {
-        let _guard = cgns_sys::lock_cgns();
+        let _guard = match cgns_sys::lock_cgns() {
+            Ok(g) => g,
+            Err(_) => return 0,
+        };
         let mut n: i32 = 0;
         if unsafe { cgns_sys::cg_npe(self.to_raw(), &mut n) } == cgns_sys::CG_OK as i32 {
             n
