@@ -1,4 +1,4 @@
-use cgns::data::{BcType, ElementType, GridLocation, PointSetType};
+use cgns::data::{BcType, ElementType, GridLocation, PointSetType, ZoneType};
 use cgns::CgnsFile;
 use std::path::PathBuf;
 
@@ -105,43 +105,616 @@ fn test_structured_3d_write_read() {
 }
 
 // ---------------------------------------------------------------------------
-// 2-D structured grid
+// Comprehensive 3-D structured grid: coords, fields, BCs, 1-to-1, families
+// Port of write_test.c structured section
 // ---------------------------------------------------------------------------
 #[test]
-fn test_2d_grid() {
-    let path = test_path("grid_2d");
+fn test_comprehensive_structured_3d() {
+    let path = test_path("comprehensive_structured_3d");
     let _ = std::fs::remove_file(&path);
 
     let ni: i64 = 5;
     let nj: i64 = 4;
-    let npts = (ni * nj) as usize;
+    let nk: i64 = 3;
+    let nverts = (ni * nj * nk) as usize;
 
-    let xs: Vec<f64> = (0..npts).map(|i| i as f64).collect();
-    let ys: Vec<f64> = (0..npts).map(|i| (i / ni as usize) as f64).collect();
+    let mut xs = vec![0.0f64; nverts];
+    let mut ys = vec![0.0f64; nverts];
+    let mut zs = vec![0.0f64; nverts];
+    let mut idx = 0;
+    for k in 0..nk {
+        for j in 0..nj {
+            for i in 0..ni {
+                xs[idx] = i as f64;
+                ys[idx] = j as f64;
+                zs[idx] = k as f64;
+                idx += 1;
+            }
+        }
+    }
+    let xs_f32: Vec<f32> = xs.iter().map(|&x| x as f32).collect();
+    let field_f64: Vec<f64> = xs
+        .iter()
+        .zip(&ys)
+        .zip(&zs)
+        .map(|((&x, &y), &z)| x + y + z)
+        .collect();
+    let field_f32: Vec<f32> = field_f64.iter().map(|&v| v as f32).collect();
+    let field_i32: Vec<i32> = (0..nverts as i32).collect();
+    let field_i64: Vec<i64> = (0..nverts as i64).collect();
 
     {
-        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
-        let base = file.create_base("Base", 2, 2).expect("create base");
-        let zone = base
-            .create_zone_structured("Zone", &[ni, nj, ni - 1, nj - 1])
-            .expect("create zone");
-        zone.write_coord_f64("X", &xs).expect("write X");
-        zone.write_coord_f64("Y", &ys).expect("write Y");
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+
+        base.write_family("Wing").expect("family Wing");
+        base.write_family("Fuselage").expect("family Fuselage");
+
+        let zone_a = base
+            .create_zone_structured("ZoneA", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+            .expect("create zone A");
+
+        zone_a.write_coord_f64("CoordinateX", &xs).expect("write X");
+        zone_a.write_coord_f64("CoordinateY", &ys).expect("write Y");
+        zone_a.write_coord_f64("CoordinateZ", &zs).expect("write Z");
+        zone_a
+            .write_coord_f32("CoordinateX_f32", &xs_f32)
+            .expect("write X f32");
+
+        let sol_v = zone_a
+            .write_solution("VertexSolution", GridLocation::Vertex)
+            .expect("write vertex solution");
+        sol_v
+            .write_field_f64("Density", &field_f64)
+            .expect("write Density");
+        zone_a
+            .write_field_f32(&sol_v, "VelX", &field_f32)
+            .expect("write VelX");
+        zone_a
+            .write_field_i32(&sol_v, "NodeID", &field_i32)
+            .expect("write NodeID");
+        zone_a
+            .write_field_i64(&sol_v, "GlobalID", &field_i64)
+            .expect("write GlobalID");
+
+        let sol_c = zone_a
+            .write_solution("CellSolution", GridLocation::CellCenter)
+            .expect("write cell solution");
+        let ncells = ((ni - 1) * (nj - 1) * (nk - 1)) as usize;
+        let cell_data = vec![2.0f64; ncells];
+        sol_c
+            .write_field_f64("Pressure", &cell_data)
+            .expect("write Pressure");
+
+        let imin_range = [1i64, 1, 1, 1, nj, nk];
+        zone_a
+            .write_bc(
+                "IMinWall",
+                BcType::Wall,
+                PointSetType::PointRange,
+                2,
+                &imin_range,
+            )
+            .expect("write BC IMinWall");
+        let imax_range = [ni, 1, 1, ni, nj, nk];
+        zone_a
+            .write_bc(
+                "IMaxOutflow",
+                BcType::Outflow,
+                PointSetType::PointRange,
+                2,
+                &imax_range,
+            )
+            .expect("write BC IMaxOutflow");
+        let jmin_sym = [1i64, 1, 1, ni, 1, nk];
+        zone_a
+            .write_bc(
+                "JMinSymmetry",
+                BcType::SymmetryPlane,
+                PointSetType::PointRange,
+                2,
+                &jmin_sym,
+            )
+            .expect("write BC JMinSymmetry");
+
+        let zone_b = base
+            .create_zone_structured("ZoneB", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+            .expect("create zone B");
+        zone_b
+            .write_coord_f64("CoordinateX", &xs)
+            .expect("write zone B X");
+        zone_b
+            .write_coord_f64("CoordinateY", &ys)
+            .expect("write zone B Y");
+        zone_b
+            .write_coord_f64("CoordinateZ", &zs)
+            .expect("write zone B Z");
+
+        let range = [ni, 1i64, 1, ni, nj, nk];
+        let donor_range = [1i64, 1, 1, 1, nj, nk];
+        let transform = [1i32, 2, 3];
+        zone_a
+            .write_1to1("AToB", "ZoneB", &range, &donor_range, &transform)
+            .expect("write 1-to-1");
     }
 
     {
-        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open file");
+        let base = file.base("Base").expect("find base");
+
+        assert_eq!(base.family_count().expect("family count"), 2);
+        let fam_names = base.family_names().expect("family names");
+        assert!(fam_names.contains(&"Wing".to_string()));
+        assert!(fam_names.contains(&"Fuselage".to_string()));
+
+        assert_eq!(base.zone_count().expect("zone count"), 2);
+        let zones = base.zones().expect("zones");
+        let zone_a = &zones[0];
+        let _zone_b = &zones[1];
+
+        assert_eq!(zone_a.zone_type().expect("zone type"), ZoneType::Structured);
+        assert_eq!(zone_a.coord_count().expect("coord count"), 4);
+        let coord_names = zone_a.coord_names().expect("coord names");
+        assert!(coord_names.contains(&"CoordinateX".to_string()));
+        assert!(coord_names.contains(&"CoordinateX_f32".to_string()));
+
+        let rmin = [1i64, 1, 1];
+        let rmax = [ni, nj, nk];
+        let mut xs_read = vec![0.0f64; nverts];
+        zone_a
+            .read_coord_f64("CoordinateX", &rmin, &rmax, &mut xs_read)
+            .expect("read coord X");
+        assert_eq!(xs_read, xs);
+
+        assert_eq!(zone_a.solution_count().expect("sol count"), 2);
+        let sol_v = zone_a
+            .solution("VertexSolution")
+            .expect("find VertexSolution");
+        assert_eq!(sol_v.field_count().expect("field count"), 4);
+
+        let mut density = vec![0.0f64; nverts];
+        sol_v
+            .read_field_f64("Density", &rmin, &rmax, &mut density)
+            .expect("read Density");
+        assert_eq!(density, field_f64);
+
+        assert_eq!(zone_a.bc_count().expect("BC count"), 3);
+
+        let bc_imin = zone_a.bc("IMinWall").expect("find BC IMinWall");
+        let bc_imin_info = bc_imin.info().expect("BC info");
+        assert_eq!(bc_imin_info.bc_type, BcType::Wall);
+        assert_eq!(bc_imin_info.point_set_type, PointSetType::PointRange);
+        assert_eq!(bc_imin_info.num_points, 2);
+
+        let bc_imin_pts = bc_imin.read_points().expect("BC points");
+        assert_eq!(bc_imin_pts, [1i64, 1, 1, 1, nj, nk]);
+
+        let bc_imax = zone_a.bc("IMaxOutflow").expect("find BC IMaxOutflow");
+        let bc_imax_info = bc_imax.info().expect("BC info");
+        assert_eq!(bc_imax_info.bc_type, BcType::Outflow);
+
+        assert_eq!(zone_a.n1to1().expect("1-to-1 count"), 1);
+        let oto = &zone_a.one_to_ones().expect("1-to-1 list")[0];
+        let oto_info = oto.read().expect("1-to-1 read");
+        assert_eq!(oto_info.name, "AToB");
+        assert_eq!(oto_info.donor_name, "ZoneB");
+        assert_eq!(oto_info.range, vec![ni, 1, 1, ni, nj, nk]);
+        assert_eq!(oto_info.donor_range, vec![1, 1, 1, 1, nj, nk]);
+        assert_eq!(oto_info.transform, vec![1, 2, 3]);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Comprehensive unstructured grid: multiple element types, sections, fields
+// Port of write_test.c / elemtest.c
+// ---------------------------------------------------------------------------
+#[test]
+fn test_comprehensive_unstructured() {
+    let path = test_path("comprehensive_unstructured");
+    let _ = std::fs::remove_file(&path);
+
+    // 8 vertices for a hexahedron
+    let nverts: i64 = 8;
+    let xs_f64: Vec<f64> = vec![0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0];
+    let ys_f64: Vec<f64> = vec![0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0];
+    let zs_f64: Vec<f64> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
+
+    let tri_conn: Vec<i64> = vec![1, 2, 3, 1, 3, 4, 5, 7, 6, 5, 8, 7];
+    let quad_conn: Vec<i64> = vec![1, 5, 8, 4, 2, 6, 7, 3];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base
+            .create_zone_unstructured("Zone", nverts, 6)
+            .expect("create zone");
+
+        zone.write_coord_f64("CoordinateX", &xs_f64)
+            .expect("write X");
+        zone.write_coord_f64("CoordinateY", &ys_f64)
+            .expect("write Y");
+        zone.write_coord_f64("CoordinateZ", &zs_f64)
+            .expect("write Z");
+
+        zone.write_section("Tris", ElementType::Tri3, 1, 4, 4, &tri_conn)
+            .expect("write Tris");
+        zone.write_section("Quads", ElementType::Quad4, 5, 6, 2, &quad_conn)
+            .expect("write Quads");
+
+        let sol = zone
+            .write_solution("VertexSolution", GridLocation::Vertex)
+            .expect("write solution");
+        let field_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        sol.write_field_f64("Pressure", &field_data)
+            .expect("write field");
+
+        let plist = [1i64, 2, 3, 4, 5, 6, 7, 8];
+        zone.write_bc("AllWalls", BcType::Wall, PointSetType::PointList, 8, &plist)
+            .expect("write BC");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open file");
         let base = file.base("Base").expect("find base");
         let zone = &base.zones().expect("zones")[0];
 
-        let mut xs_read = vec![0.0; npts];
-        let mut ys_read = vec![0.0; npts];
-        zone.read_coord_f64("X", &[1, 1], &[ni, nj], &mut xs_read)
-            .expect("read X");
-        zone.read_coord_f64("Y", &[1, 1], &[ni, nj], &mut ys_read)
-            .expect("read Y");
-        assert_eq!(xs_read, xs);
-        assert_eq!(ys_read, ys);
+        assert_eq!(zone.zone_type().expect("zone type"), ZoneType::Unstructured);
+        assert_eq!(zone.coord_count().expect("coord count"), 3);
+        assert_eq!(zone.section_count().expect("section count"), 2);
+
+        let tri_sec = zone.section("Tris").expect("find Tris");
+        let tri_info = tri_sec.info().expect("Tris info");
+        assert_eq!(tri_info.element_type, ElementType::Tri3);
+        assert_eq!(tri_info.start, 1);
+        assert_eq!(tri_info.end, 4);
+        assert_eq!(tri_info.nbndry, 4);
+        assert_eq!(tri_sec.element_count().expect("element count"), 4);
+        assert_eq!(tri_sec.read_connectivity().expect("tri conn"), tri_conn);
+
+        let and = tri_sec.read_connectivity_ndarray().expect("ndarray");
+        assert_eq!(and.shape(), &[4, 3]);
+
+        let quad_sec = zone.section("Quads").expect("find Quads");
+        let quad_info = quad_sec.info().expect("Quads info");
+        assert_eq!(quad_info.element_type, ElementType::Quad4);
+        assert_eq!(quad_info.nbndry, 2);
+        assert_eq!(quad_sec.element_count().expect("element count"), 2);
+        assert_eq!(quad_sec.read_connectivity().expect("quad conn"), quad_conn);
+
+        assert_eq!(zone.solution_count().expect("solution count"), 1);
+        let sol = zone.solution("VertexSolution").expect("find solution");
+        assert_eq!(sol.field_count().expect("field count"), 1);
+
+        assert_eq!(zone.bc_count().expect("BC count"), 1);
+        let bc = zone.bc("AllWalls").expect("find BC");
+        let bc_info = bc.info().expect("BC info");
+        assert_eq!(bc_info.bc_type, BcType::Wall);
+        assert_eq!(bc_info.point_set_type, PointSetType::PointList);
+        assert_eq!(bc_info.num_points, 8);
+        let bc_pts = bc.read_points().expect("BC points");
+        assert_eq!(bc_pts, [1i64, 2, 3, 4, 5, 6, 7, 8]);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// All fixed-NPE element types round-trip (port of elemtest.c)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_all_element_types() {
+    let path = test_path("all_element_types");
+    let _ = std::fs::remove_file(&path);
+
+    let nverts: i64 = 42;
+
+    let bar2: Vec<i64> = vec![1, 2];
+    let bar3: Vec<i64> = vec![1, 2, 12];
+    let tri3: Vec<i64> = vec![4, 3, 9];
+    let tri6: Vec<i64> = vec![4, 3, 9, 14, 31, 32];
+    let quad4: Vec<i64> = vec![1, 2, 3, 4];
+    let quad8: Vec<i64> = vec![1, 2, 3, 4, 12, 13, 14, 15];
+    let quad9: Vec<i64> = vec![1, 2, 3, 4, 12, 13, 14, 15, 24];
+    let tetra4: Vec<i64> = vec![8, 7, 10, 11];
+    let tetra10: Vec<i64> = vec![8, 7, 10, 11, 22, 35, 36, 41, 40, 42];
+    let pyra5: Vec<i64> = vec![5, 6, 7, 8, 11];
+    let pyra14: Vec<i64> = vec![5, 6, 7, 8, 11, 20, 21, 22, 23, 38, 39, 40, 41, 29];
+    let penta6: Vec<i64> = vec![4, 3, 9, 8, 7, 10];
+    let penta15: Vec<i64> = vec![4, 3, 9, 8, 7, 10, 14, 31, 32, 19, 18, 35, 22, 34, 35];
+    let penta18: Vec<i64> = vec![
+        4, 3, 9, 8, 7, 10, 14, 31, 32, 19, 18, 35, 22, 34, 35, 27, 36, 37,
+    ];
+    let hexa8: Vec<i64> = vec![1, 2, 3, 4, 5, 6, 7, 8];
+    let hexa20: Vec<i64> = vec![
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    ];
+    let hexa27: Vec<i64> = (1..=27).collect();
+
+    type ElemCase = (&'static str, ElementType, Vec<i64>);
+    let cases: &[ElemCase] = &[
+        ("Bar2", ElementType::Bar2, bar2),
+        ("Bar3", ElementType::Bar3, bar3),
+        ("Tri3", ElementType::Tri3, tri3),
+        ("Tri6", ElementType::Tri6, tri6),
+        ("Quad4", ElementType::Quad4, quad4),
+        ("Quad8", ElementType::Quad8, quad8),
+        ("Quad9", ElementType::Quad9, quad9),
+        ("Tetra4", ElementType::Tetra4, tetra4),
+        ("Tetra10", ElementType::Tetra10, tetra10),
+        ("Pyra5", ElementType::Pyra5, pyra5),
+        ("Pyra14", ElementType::Pyra14, pyra14),
+        ("Penta6", ElementType::Penta6, penta6),
+        ("Penta15", ElementType::Penta15, penta15),
+        ("Penta18", ElementType::Penta18, penta18),
+        ("Hexa8", ElementType::Hexa8, hexa8),
+        ("Hexa20", ElementType::Hexa20, hexa20),
+        ("Hexa27", ElementType::Hexa27, hexa27),
+    ];
+
+    let mut total_elems: i64 = 0;
+    for (_, etype, conn) in cases {
+        total_elems += 1;
+        let npe = etype.npe() as usize;
+        assert_eq!(conn.len(), npe, "wrong npe for {:?}", etype);
+    }
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base
+            .create_zone_unstructured("Zone", nverts, total_elems)
+            .expect("create zone");
+
+        // Write one element per section
+        for (i, (name, etype, conn)) in cases.iter().enumerate() {
+            let elem_num = (i + 1) as i64;
+            zone.write_section(name, *etype, elem_num, elem_num, 0, conn)
+                .unwrap_or_else(|_| panic!("write section {}", name));
+        }
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open file");
+        let zone = file
+            .base("Base")
+            .expect("find base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
+
+        assert_eq!(
+            zone.section_count().expect("section count"),
+            cases.len() as i32
+        );
+
+        for (name, etype, expected_conn) in cases {
+            let sec = zone
+                .section(name)
+                .unwrap_or_else(|_| panic!("find section {}", name));
+            let info = sec.info().unwrap_or_else(|_| panic!("info for {}", name));
+            assert_eq!(
+                info.element_type, *etype,
+                "element type mismatch for {}",
+                name
+            );
+            assert_eq!(sec.element_count().expect("element count"), 1);
+
+            let read_conn = sec
+                .read_connectivity()
+                .unwrap_or_else(|_| panic!("read conn for {}", name));
+            assert_eq!(
+                read_conn, *expected_conn,
+                "connectivity mismatch for {}",
+                name
+            );
+
+            let and = sec
+                .read_connectivity_ndarray()
+                .unwrap_or_else(|_| panic!("ndarray for {}", name));
+            assert_eq!(
+                and.shape(),
+                &[1, etype.npe() as usize],
+                "shape mismatch for {}",
+                name
+            );
+        }
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Multiple BC types and point set types
+// ---------------------------------------------------------------------------
+#[test]
+fn test_bc_types() {
+    let path = test_path("bc_types");
+    let _ = std::fs::remove_file(&path);
+
+    let ni: i64 = 6;
+    let nj: i64 = 5;
+    let nk: i64 = 4;
+    let nverts = (ni * nj * nk) as usize;
+    let data = vec![0.0f64; nverts];
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let zone = base
+            .create_zone_structured("Zone", &[ni, nj, nk, ni - 1, nj - 1, nk - 1, 0, 0, 0])
+            .expect("create zone");
+        zone.write_coord_f64("X", &data).expect("write X");
+
+        zone.write_bc(
+            "Wall",
+            BcType::Wall,
+            PointSetType::PointRange,
+            2,
+            &[1, 1, 1, 1, nj, nk],
+        )
+        .expect("write Wall");
+        zone.write_bc(
+            "Inflow",
+            BcType::InflowSubsonic,
+            PointSetType::PointRange,
+            2,
+            &[ni, 1, 1, ni, nj, nk],
+        )
+        .expect("write Inflow");
+        zone.write_bc(
+            "Outflow",
+            BcType::OutflowSupersonic,
+            PointSetType::PointRange,
+            2,
+            &[1, 1, 1, ni, 1, nk],
+        )
+        .expect("write Outflow");
+        zone.write_bc(
+            "Farfield",
+            BcType::Farfield,
+            PointSetType::PointRange,
+            2,
+            &[1, nj, 1, ni, nj, nk],
+        )
+        .expect("write Farfield");
+        zone.write_bc(
+            "Symmetry",
+            BcType::SymmetryPlane,
+            PointSetType::PointRange,
+            2,
+            &[1, 1, nk, ni, nj, nk],
+        )
+        .expect("write Symmetry");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open file");
+        let zone = file
+            .base("Base")
+            .expect("find base")
+            .zones()
+            .expect("zones")
+            .into_iter()
+            .next()
+            .unwrap();
+
+        assert_eq!(zone.bc_count().expect("BC count"), 5);
+
+        let wall = zone.bc("Wall").expect("find Wall");
+        assert_eq!(wall.info().expect("info").bc_type, BcType::Wall);
+
+        let inflow = zone.bc("Inflow").expect("find Inflow");
+        assert_eq!(inflow.info().expect("info").bc_type, BcType::InflowSubsonic);
+
+        let outflow = zone.bc("Outflow").expect("find Outflow");
+        assert_eq!(
+            outflow.info().expect("info").bc_type,
+            BcType::OutflowSupersonic
+        );
+
+        let farfield = zone.bc("Farfield").expect("find Farfield");
+        assert_eq!(farfield.info().expect("info").bc_type, BcType::Farfield);
+
+        let sym = zone.bc("Symmetry").expect("find Symmetry");
+        assert_eq!(sym.info().expect("info").bc_type, BcType::SymmetryPlane);
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Write and read multiple 1-to-1 interfaces
+// ---------------------------------------------------------------------------
+#[test]
+fn test_multiple_1to1() {
+    let path = test_path("multiple_1to1");
+    let _ = std::fs::remove_file(&path);
+
+    let verts = vec![0.0f64; 8];
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        let z1 = base
+            .create_zone_structured("Zone1", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("z1");
+        let z2 = base
+            .create_zone_structured("Zone2", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("z2");
+        let z3 = base
+            .create_zone_structured("Zone3", &[2, 2, 2, 1, 1, 1, 0, 0, 0])
+            .expect("z3");
+        z1.write_coord_f64("X", &verts).expect("z1 X");
+        z2.write_coord_f64("X", &verts).expect("z2 X");
+        z3.write_coord_f64("X", &verts).expect("z3 X");
+
+        z1.write_1to1(
+            "Z1_to_Z2",
+            "Zone2",
+            &[2, 1, 1, 2, 2, 2],
+            &[1, 1, 1, 1, 2, 2],
+            &[1, 2, 3],
+        )
+        .expect("z1->z2");
+        z2.write_1to1(
+            "Z2_to_Z3",
+            "Zone3",
+            &[2, 1, 1, 2, 2, 2],
+            &[1, 1, 1, 1, 2, 2],
+            &[1, 2, 3],
+        )
+        .expect("z2->z3");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open file");
+        let base = file.base("Base").expect("find base");
+        let zones = base.zones().expect("zones");
+
+        assert_eq!(zones[0].n1to1().expect("z1 1to1 count"), 1);
+        assert_eq!(zones[1].n1to1().expect("z2 1to1 count"), 1);
+        assert_eq!(zones[2].n1to1().expect("z3 1to1 count"), 0);
+
+        let oto = &zones[0].one_to_ones().expect("z1 1to1s")[0];
+        let info = oto.read().expect("read 1to1");
+        assert_eq!(info.name, "Z1_to_Z2");
+        assert_eq!(info.donor_name, "Zone2");
+    }
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Read back family names correctly
+// ---------------------------------------------------------------------------
+#[test]
+fn test_family_names_readback() {
+    let path = test_path("family_names_readback");
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create file");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+        base.write_family("Farfield").expect("fam1");
+        base.write_family("Wing").expect("fam2");
+        base.write_family("Fuselage").expect("fam3");
+        base.write_family("Tail").expect("fam4");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open file");
+        let base = file.base("Base").expect("find base");
+        assert_eq!(base.family_count().expect("family count"), 4);
+
+        let names = base.family_names().expect("family names");
+        assert_eq!(names.len(), 4);
+        assert!(names.contains(&"Farfield".to_string()));
+        assert!(names.contains(&"Wing".to_string()));
+        assert!(names.contains(&"Fuselage".to_string()));
+        assert!(names.contains(&"Tail".to_string()));
     }
 
     std::fs::remove_file(&path).ok();
@@ -788,6 +1361,64 @@ fn test_1to1_connectivity() {
     let zones = base.zones().expect("zones");
     let zone_a = &zones[0];
     assert_eq!(zone_a.n1to1().expect("n1to1"), 1);
+
+    std::fs::remove_file(&path).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Base and Zone metadata readback (cell_dim, phys_dim, size, index_dim)
+// ---------------------------------------------------------------------------
+#[test]
+fn test_base_zone_metadata() {
+    let path = test_path("base_zone_metadata");
+    let _ = std::fs::remove_file(&path);
+
+    {
+        let file = CgnsFile::create(&path.to_string_lossy()).expect("create");
+        let base = file.create_base("Base", 3, 3).expect("create base");
+
+        // Structured zone (3D)
+        let _zone = base
+            .create_zone_structured("Structured", &[4, 3, 2, 3, 2, 1, 0, 0, 0])
+            .expect("create structured zone");
+
+        // Unstructured zone
+        let _uzone = base
+            .create_zone_unstructured("Unstructured", 10, 5)
+            .expect("create unstructured zone");
+    }
+
+    {
+        let file = CgnsFile::open(&path.to_string_lossy()).expect("open");
+        let base = file.base("Base").expect("find base");
+        assert_eq!(base.cell_dim().expect("cell_dim"), 3);
+        assert_eq!(base.phys_dim().expect("phys_dim"), 3);
+
+        let zones = base.zones().expect("zones");
+        assert_eq!(zones.len(), 2);
+
+        // Structured zone
+        let szone = &zones[0];
+        assert_eq!(szone.zone_type().expect("zone_type"), ZoneType::Structured);
+        assert_eq!(szone.index_dim().expect("index_dim"), 3);
+        let ssize = szone.size().expect("size");
+        assert_eq!(ssize.len(), 9);
+        assert_eq!(ssize[0], 4);
+        assert_eq!(ssize[1], 3);
+        assert_eq!(ssize[2], 2);
+
+        // Unstructured zone
+        let uzone = &zones[1];
+        assert_eq!(
+            uzone.zone_type().expect("zone_type"),
+            ZoneType::Unstructured
+        );
+        assert_eq!(uzone.index_dim().expect("index_dim"), 1);
+        let usize = uzone.size().expect("size");
+        assert_eq!(usize.len(), 3);
+        assert_eq!(usize[0], 10);
+        assert_eq!(usize[1], 5);
+    }
 
     std::fs::remove_file(&path).ok();
 }

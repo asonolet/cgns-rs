@@ -1,5 +1,5 @@
 use crate::data::{BcType, PointSetType};
-use crate::error::CgnsResult;
+use crate::error::{check_sys_status, CgnsResult};
 
 /// An opaque handle to a boundary condition on a zone.
 pub struct Bc {
@@ -16,7 +16,6 @@ impl Bc {
 
     /// Read boundary condition metadata.
     pub fn info(&self) -> CgnsResult<BcInfo> {
-        let _guard = cgns_sys::lock_cgns();
         let mut buf = vec![0u8; 64];
         let mut bocotype: u32 = 0;
         let mut ptset_type: u32 = 0;
@@ -45,9 +44,20 @@ impl Bc {
     /// Read the boundary condition point data.
     ///
     /// Returns the flat point indices array.
+    /// For structured zones, each point has index_dim components.
     pub fn read_points(&self) -> CgnsResult<Vec<i64>> {
         let info = self.info()?;
-        let mut pnts = vec![0i64; info.num_points as usize];
+        // Query the zone's index dimension to correctly size the buffer.
+        // cg_boco_read reads npts * index_dim values (see cgnslib.c).
+        let _guard = cgns_sys::lock_cgns();
+        let mut dim: i32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_index_dim(self.file_fn, self.base_index, self.zone_index, &mut dim)
+        };
+        check_sys_status(status)?;
+        drop(_guard);
+        let buf_size = (info.num_points * dim as i64) as usize;
+        let mut pnts = vec![0i64; buf_size];
         cgns_sys::boco_read(
             self.file_fn,
             self.base_index,

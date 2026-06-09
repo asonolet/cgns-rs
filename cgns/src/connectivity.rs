@@ -15,7 +15,6 @@ impl OneToOne {
 
     /// Read 1-to-1 interface metadata.
     pub fn read(&self) -> CgnsResult<OneToOneInfo> {
-        let _guard = cgns_sys::lock_cgns();
         let mut name_buf = vec![0u8; 64];
         let mut donor_buf = vec![0u8; 64];
         let mut range = vec![0i64; 6];

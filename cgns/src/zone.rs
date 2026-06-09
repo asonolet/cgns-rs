@@ -23,6 +23,43 @@ impl Zone {
         self.index
     }
 
+    /// Return the zone size array: `[num_vertices, num_elements, ...]`.
+    /// For structured zones this returns the full 9-entry size array.
+    pub fn size(&self) -> CgnsResult<Vec<i64>> {
+        let _guard = cgns_sys::lock_cgns();
+        // Query index_dim internally (avoid calling self.index_dim() which acquires the mutex)
+        let mut index_dim: i32 = 0;
+        let status = unsafe {
+            cgns_sys::cg_index_dim(self.file_fn, self.base_index, self.index, &mut index_dim)
+        };
+        check_sys_status(status)?;
+        let nsize_entries = index_dim as usize * 3;
+        let mut size = vec![0i64; nsize_entries];
+        let mut buf = vec![0u8; 64];
+        let status = unsafe {
+            cgns_sys::cg_zone_read(
+                self.file_fn,
+                self.base_index,
+                self.index,
+                buf.as_mut_ptr() as *mut i8,
+                size.as_mut_ptr(),
+            )
+        };
+        check_sys_status(status)?;
+        Ok(size)
+    }
+
+    /// Return the index dimension of this zone.
+    /// For structured zones this is 1, 2, or 3. For unstructured zones it is 1.
+    pub fn index_dim(&self) -> CgnsResult<i32> {
+        let _guard = cgns_sys::lock_cgns();
+        let mut dim: i32 = 0;
+        let status =
+            unsafe { cgns_sys::cg_index_dim(self.file_fn, self.base_index, self.index, &mut dim) };
+        check_sys_status(status)?;
+        Ok(dim)
+    }
+
     pub fn zone_type(&self) -> CgnsResult<ZoneType> {
         let _guard = cgns_sys::lock_cgns();
         let mut raw: u32 = 0;
